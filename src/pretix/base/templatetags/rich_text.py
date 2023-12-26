@@ -65,6 +65,8 @@ ALLOWED_TAGS_SNIPPET = [
     'i',
     'strong',
     'span',
+    'strike',
+    's',
     # Update doc/user/markdown.rst if you change this!
 ]
 ALLOWED_TAGS = ALLOWED_TAGS_SNIPPET + [
@@ -292,7 +294,7 @@ class LinkifyAndCleanExtension(Extension):
         )
 
 
-def markdown_compile_email(source):
+def markdown_compile_email(source, allowed_tags=ALLOWED_TAGS, allowed_attributes=ALLOWED_ATTRIBUTES):
     linker = bleach.Linker(
         url_re=URL_RE,
         email_re=EMAIL_RE,
@@ -306,8 +308,8 @@ def markdown_compile_email(source):
             EmailNl2BrExtension(),
             LinkifyAndCleanExtension(
                 linker,
-                tags=ALLOWED_TAGS,
-                attributes=ALLOWED_ATTRIBUTES,
+                tags=allowed_tags,
+                attributes=allowed_attributes,
                 protocols=ALLOWED_PROTOCOLS,
                 strip=False,
             )

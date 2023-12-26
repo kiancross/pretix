@@ -34,12 +34,13 @@
 # License for the specific language governing permissions and limitations under the License.
 
 import io
+from urllib.parse import urlencode
 
 import bleach
 from defusedcsv import csv
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection, transaction
 from django.db.models import Exists, OuterRef, Sum
 from django.http import (
@@ -63,7 +64,6 @@ from pretix.base.models import (
     CartPosition, LogEntry, Voucher, WaitingListEntry,
 )
 from pretix.base.models.vouchers import generate_codes
-from pretix.base.services.locking import NoLockManager
 from pretix.base.services.vouchers import vouchers_send
 from pretix.base.templatetags.rich_text import markdown_compile_email
 from pretix.base.views.tasks import AsyncFormView
@@ -75,6 +75,7 @@ from pretix.control.views import PaginationMixin
 from pretix.helpers.compat import CompatDeleteView
 from pretix.helpers.format import format_map
 from pretix.helpers.models import modelcopy
+from pretix.multidomain.urlreverse import build_absolute_uri
 
 
 class VoucherList(PaginationMixin, EventPermissionRequiredMixin, ListView):
@@ -268,7 +269,7 @@ class VoucherDelete(EventPermissionRequiredMixin, CompatDeleteView):
 class VoucherUpdate(EventPermissionRequiredMixin, UpdateView):
     model = Voucher
     template_name = 'pretixcontrol/vouchers/detail.html'
-    permission = 'can_change_vouchers'
+    permission = ('can_change_vouchers', 'can_view_vouchers')
     context_object_name = 'voucher'
 
     def form_invalid(self, form):
@@ -282,6 +283,14 @@ class VoucherUpdate(EventPermissionRequiredMixin, UpdateView):
                 form_class = response
         return form_class
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if not self.request.user.has_event_permission(self.request.organizer, self.request.event, 'can_change_vouchers',
+                                                      request=self.request):
+            for f in form.fields.values():
+                f.disabled = True
+        return form
+
     def get_object(self, queryset=None) -> VoucherForm:
         url = resolve(self.request.path_info)
         try:
@@ -291,7 +300,6 @@ class VoucherUpdate(EventPermissionRequiredMixin, UpdateView):
         except Voucher.DoesNotExist:
             raise Http404(_("The requested voucher does not exist."))
 
-    @transaction.atomic
     def form_valid(self, form):
         messages.success(self.request, _('Your changes have been saved.'))
         if form.has_changed():
@@ -301,6 +309,13 @@ class VoucherUpdate(EventPermissionRequiredMixin, UpdateView):
                 }
             )
         return super().form_valid(form)
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        if not request.user.has_event_permission(request.organizer, request.event, 'can_change_vouchers',
+                                                 request=request):
+            raise PermissionDenied()
+        return super().post(request, *args, **kwargs)
 
     def get_success_url(self) -> str:
         return reverse('control:event.vouchers', kwargs={
@@ -315,6 +330,13 @@ class VoucherUpdate(EventPermissionRequiredMixin, UpdateView):
             expires__gte=now()
         ).count()
         ctx['redeemed_in_carts'] = redeemed_in_carts
+
+        url_params = {
+            'voucher': self.object.code
+        }
+        if self.object.subevent_id:
+            url_params['subevent'] = self.object.subevent_id
+        ctx['url'] = build_absolute_uri(self.request.event, "presale:event.redeem") + "?" + urlencode(url_params)
         return ctx
 
 
@@ -346,7 +368,6 @@ class VoucherCreate(EventPermissionRequiredMixin, CreateView):
         kwargs['instance'] = Voucher(event=self.request.event)
         return kwargs
 
-    @transaction.atomic
     def form_valid(self, form):
         form.instance.event = self.request.event
         ret = super().form_valid(form)
@@ -361,10 +382,9 @@ class VoucherCreate(EventPermissionRequiredMixin, CreateView):
         form.instance.log_action('pretix.voucher.added', data=dict(form.cleaned_data), user=self.request.user)
         return ret
 
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
-        # TODO: Transform this into an asynchronous call?
-        with request.event.lock():
-            return super().post(request, *args, **kwargs)
+        return super().post(request, *args, **kwargs)
 
 
 class VoucherGo(EventPermissionRequiredMixin, View):
@@ -389,6 +409,7 @@ class VoucherBulkCreate(EventPermissionRequiredMixin, AsyncFormView):
     template_name = 'pretixcontrol/vouchers/bulk.html'
     permission = 'can_change_vouchers'
     context_object_name = 'voucher'
+    atomic_execute = True
 
     def get_success_url(self, value) -> str:
         return reverse('control:event.vouchers', kwargs={
@@ -428,9 +449,6 @@ class VoucherBulkCreate(EventPermissionRequiredMixin, AsyncFormView):
         return form_kwargs
 
     def async_form_valid(self, task, form):
-        lockfn = NoLockManager
-        if form.data.get('block_quota'):
-            lockfn = self.request.event.lock
         batch_size = 500
         total_num = 1  # will be set later
 
@@ -464,27 +482,26 @@ class VoucherBulkCreate(EventPermissionRequiredMixin, AsyncFormView):
             set_progress(len(voucherids) / total_num * (50. if form.cleaned_data['send'] else 100.))
 
         voucherids = []
-        with lockfn(), transaction.atomic():
-            if not form.is_valid():
-                raise ValidationError(form.errors)
-            total_num = len(form.cleaned_data['codes'])
+        if not form.is_valid():
+            raise ValidationError(form.errors)
+        total_num = len(form.cleaned_data['codes'])
 
-            batch_vouchers = []
-            for code in form.cleaned_data['codes']:
-                if len(batch_vouchers) >= batch_size:
-                    process_batch(batch_vouchers, voucherids)
+        batch_vouchers = []
+        for code in form.cleaned_data['codes']:
+            if len(batch_vouchers) >= batch_size:
+                process_batch(batch_vouchers, voucherids)
 
-                obj = modelcopy(form.instance, code=None)
-                obj.event = self.request.event
-                obj.code = code
-                try:
-                    obj.seat = form.cleaned_data['seats'].pop()
-                    obj.item = obj.seat.product
-                except IndexError:
-                    pass
-                batch_vouchers.append(obj)
+            obj = modelcopy(form.instance, code=None)
+            obj.event = self.request.event
+            obj.code = code
+            try:
+                obj.seat = form.cleaned_data['seats'].pop()
+                obj.item = obj.seat.product
+            except IndexError:
+                pass
+            batch_vouchers.append(obj)
 
-            process_batch(batch_vouchers, voucherids)
+        process_batch(batch_vouchers, voucherids)
 
         if form.cleaned_data['send']:
             vouchers_send(
@@ -515,6 +532,10 @@ class VoucherBulkCreate(EventPermissionRequiredMixin, AsyncFormView):
     def form_invalid(self, form):
         messages.error(self.request, _('We could not save your changes. See below for details.'))
         return super().form_invalid(form)
+
+    @transaction.atomic()
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 
 class VoucherBulkMailPreview(EventPermissionRequiredMixin, View):

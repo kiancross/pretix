@@ -254,7 +254,7 @@ class EventViewSet(viewsets.ModelViewSet):
         new_event = serializer.save(organizer=self.request.organizer)
 
         if copy_from:
-            new_event.copy_data_from(copy_from)
+            new_event.copy_data_from(copy_from, skip_meta_data='meta_data' in serializer.validated_data)
 
             if plugins is not None:
                 new_event.set_active_plugins(plugins)
@@ -381,15 +381,28 @@ with scopes_disabled():
                 | Q(location__icontains=i18ncomp(value))
             )
 
+    class OrganizerSubEventFilter(SubEventFilter):
+        def search_qs(self, queryset, name, value):
+            return queryset.filter(
+                Q(name__icontains=i18ncomp(value))
+                | Q(event__slug__icontains=value)
+                | Q(location__icontains=i18ncomp(value))
+            )
+
 
 class SubEventViewSet(ConditionalListView, viewsets.ModelViewSet):
     serializer_class = SubEventSerializer
     queryset = SubEvent.objects.none()
     write_permission = 'can_change_event_settings'
     filter_backends = (DjangoFilterBackend, TotalOrderingFilter)
-    filterset_class = SubEventFilter
     ordering = ('date_from',)
     ordering_fields = ('id', 'date_from', 'last_modified')
+
+    @property
+    def filterset_class(self):
+        if getattr(self.request, 'event', None):
+            return SubEventFilter
+        return OrganizerSubEventFilter
 
     def get_queryset(self):
         if getattr(self.request, 'event', None):
@@ -415,6 +428,7 @@ class SubEventViewSet(ConditionalListView, viewsets.ModelViewSet):
             'subeventitem_set',
             'subeventitemvariation_set',
             'meta_values',
+            'meta_values__property',
             Prefetch(
                 'seat_category_mappings',
                 to_attr='_seat_category_mappings',

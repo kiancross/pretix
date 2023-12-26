@@ -29,6 +29,8 @@
                 id="product-select2">{% url "control:event.items.select2" event=request.event.slug organizer=request.organizer.slug %}</script>
         <script type="text/plain"
                 id="variations-select2">{% url "control:event.items.variations.select2" event=request.event.slug organizer=request.organizer.slug %}</script>
+        <script type="text/plain"
+                id="gates-select2">{% url "control:organizer.gates.select2" organizer=request.organizer.slug %}</script>
         {% csrf_token %}
         {% bootstrap_form_errors form %}
         <div class="tabbed-form">
@@ -69,6 +71,8 @@
                 {% if form.gates %}
                     {% bootstrap_field form.gates layout="control" %}
                 {% endif %}
+                {% bootstrap_field form.consider_tickets_used layout="control" %}
+                {% bootstrap_field form.ignore_in_statistics layout="control" %}
 
                 <h3>{% trans "Custom check-in rule" %}</h3>
                 <div id="rules-editor" class="form-inline">

@@ -26,7 +26,7 @@ installation guides):
 * `Docker`_
 * A SMTP server to send out mails, e.g. `Postfix`_ on your machine or some third-party server you have credentials for
 * A HTTP reverse proxy, e.g. `nginx`_ or Apache to allow HTTPS connections
-* A `PostgreSQL`_ 11+ database server
+* A `PostgreSQL`_ 12+ database server
 * A `redis`_ server
 
 We also recommend that you use a firewall, although this is not a pretix-specific recommendation. If you're new to
@@ -276,7 +276,8 @@ Restarting the service can take a few seconds, especially if the update requires
 Replace ``stable`` above with a specific version number like ``1.0`` or with ``latest`` for the development
 version, if you want to.
 
-Make sure to also read :ref:`update_notes` and the release notes of the version you are updating to.
+Make sure to also read :ref:`update_notes` and the release notes of the version you are updating to. Pay special
+attention to the "Runtime and server environment" section of all release notes between your current and new version.
 
 .. _`docker_plugininstall`:
 

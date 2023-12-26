@@ -11,13 +11,13 @@ window.PretixWidget = {
 };
 
 var Vue = module.exports;
-Vue.component('resize-observer', VueResize.ResizeObserver)
 
 var strings = {
     'quantity': django.pgettext('widget', 'Quantity'),
     'quantity_dec': django.pgettext('widget', 'Decrease quantity'),
     'quantity_inc': django.pgettext('widget', 'Increase quantity'),
     'price': django.pgettext('widget', 'Price'),
+    'select': django.pgettext('widget', 'Select'),
     'select_item': django.pgettext('widget', 'Select %s'),
     'select_variant': django.pgettext('widget', 'Select variant %s'),
     'sold_out': django.pgettext('widget', 'Sold out'),
@@ -215,7 +215,13 @@ Vue.component('availbox', {
         + '<a :href="waiting_list_url" target="_blank" @click="$root.open_link_in_frame">' + strings.waiting_list + '</a>'
         + '</div>'
         + '<div class="pretix-widget-availability-available" v-if="!require_voucher && avail[0] === 100">'
-        + '<label class="pretix-widget-item-count-single-label" v-if="order_max === 1">'
+        + '<label class="pretix-widget-item-count-single-label pretix-widget-btn-checkbox" v-if="order_max === 1 && $root.single_item_select == \'button\'">'
+        + '<input type="checkbox" value="1" :checked="!!amount_selected" @change="amount_selected = $event.target.checked" :name="input_name"'
+        + '       v-bind:aria-label="label_select_item"'
+        + '>'
+        + '<span class="pretix-widget-icon-cart" aria-hidden="true"></span> ' + strings.select
+        + '</label>'
+        + '<label class="pretix-widget-item-count-single-label" v-else-if="order_max === 1">'
         + '<input type="checkbox" value="1" :checked="!!amount_selected" @change="amount_selected = $event.target.checked" :name="input_name"'
         + '       v-bind:aria-label="label_select_item"'
         + '>'
@@ -330,7 +336,7 @@ Vue.component('pricebox', {
         + '<div v-if="free_price">'
         + '{{ $root.currency }} '
         + '<input type="number" class="pretix-widget-pricebox-price-input" placeholder="0" '
-        + '       :min="display_price_nonlocalized" :value="display_price_nonlocalized" :name="field_name"'
+        + '       :min="display_price_nonlocalized" :value="suggested_price_nonlocalized" :name="field_name"'
         + '       step="any" aria-label="'+strings.price+'">'
         + '</div>'
         + '<small class="pretix-widget-pricebox-tax" v-if="price.rate != \'0.00\' && price.gross != \'0.00\'">'
@@ -341,6 +347,7 @@ Vue.component('pricebox', {
         price: Object,
         free_price: Boolean,
         field_name: String,
+        suggested_price: Object,
         original_price: String,
         mandatory_priced_addons: Boolean,
     },
@@ -357,6 +364,17 @@ Vue.component('pricebox', {
                 return parseFloat(this.price.net).toFixed(2);
             } else {
                 return parseFloat(this.price.gross).toFixed(2);
+            }
+        },
+        suggested_price_nonlocalized: function () {
+            var price = this.suggested_price;
+            if (price === null) {
+                price = this.price;
+            }
+            if (this.$root.display_net_prices) {
+                return parseFloat(price.net).toFixed(2);
+            } else {
+                return parseFloat(price.gross).toFixed(2);
             }
         },
         original_line: function () {
@@ -414,7 +432,7 @@ Vue.component('variation', {
         // Price
         + '<div class="pretix-widget-item-price-col">'
         + '<pricebox :price="variation.price" :free_price="item.free_price" :original_price="orig_price" '
-        + '          :mandatory_priced_addons="item.mandatory_priced_addons"'
+        + '          :mandatory_priced_addons="item.mandatory_priced_addons" :suggested_price="variation.suggested_price"'
         + '          :field_name="\'price_\' + item.id + \'_\' + variation.id" v-if="$root.showPrices">'
         + '</pricebox>'
         + '<span v-if="!$root.showPrices">&nbsp;</span>'
@@ -472,7 +490,7 @@ Vue.component('item', {
         // Price
         + '<div class="pretix-widget-item-price-col">'
         + '<pricebox :price="item.price" :free_price="item.free_price" v-if="!item.has_variations && $root.showPrices"'
-        + '          :mandatory_priced_addons="item.mandatory_priced_addons"'
+        + '          :mandatory_priced_addons="item.mandatory_priced_addons" :suggested_price="item.suggested_price"'
         + '          :field_name="\'price_\' + item.id" :original_price="item.original_price">'
         + '</pricebox>'
         + '<div class="pretix-widget-pricebox" v-if="item.has_variations && $root.showPrices">{{ pricerange }}</div>'
@@ -736,9 +754,6 @@ var shared_methods = {
             window.open(redirect_url);
         }
     },
-    handleResize: function () {
-        this.mobile = this.$refs.wrapper.clientWidth <= 800;
-    }
 };
 
 var shared_widget_data = function () {
@@ -1017,7 +1032,7 @@ Vue.component('pretix-widget-event-form', {
                             break;
                         }
                     }
-                    if (item.variations.length === 0 && item.price.gross !== "0.00") {
+                    if ((item.variations.length === 0 && item.price.gross !== "0.00") || item.mandatory_priced_addons) {
                         all_free = false;
                         break;
                     }
@@ -1078,6 +1093,46 @@ Vue.component('pretix-widget-event-form', {
     }
 });
 
+Vue.component('pretix-widget-event-list-filter-field', {
+    template: ('<div class="pretix-widget-event-list-filter-field">'
+        + '<label :for="id">{{ field.label }}</label>'
+        + '<select :id="id" :name="field.key" @change="onChange($event)" :value="currentValue">'
+        + '<option v-for="choice in field.choices" :value="choice[0]">{{ choice[1] }}</option>'
+        + '</select>'
+        + '</div>'),
+    props: {
+        field: Object
+    },
+    methods: {
+        onChange: function(event) {
+            var filterParams = new URLSearchParams(this.$root.filter);
+            if (event.target.value) {
+                filterParams.set(this.field.key, event.target.value);
+            } else {
+                filterParams.delete(this.field.key);
+            }
+            this.$root.filter = filterParams.toString();
+            this.$root.loading++;
+            this.$root.reload();
+        },
+    },
+    computed: {
+        id: function () {
+            return widget_id + "_" + this.field.key;
+        },
+        currentValue: function () {
+            var filterParams = new URLSearchParams(this.$root.filter);
+            return filterParams.get(this.field.key) || "";
+        },
+    },
+});
+
+Vue.component('pretix-widget-event-list-filter-form', {
+    template: ('<div class="pretix-widget-event-list-filter-form">'
+        + '<pretix-widget-event-list-filter-field v-for="field in $root.meta_filter_fields" :field="field" :key="field.key"></pretix-widget-event-list-filter-field>'
+        + '</div>'),
+});
+
 Vue.component('pretix-widget-event-list-entry', {
     template: ('<a :class="classObject" @click.prevent.stop="select">'
         + '<div class="pretix-widget-event-list-entry-name">{{ event.name }}</div>'
@@ -1127,6 +1182,7 @@ Vue.component('pretix-widget-event-list', {
         + '<strong>{{ $root.name }}</strong>'
         + '</div>'
         + '<div class="pretix-widget-event-description" v-if="$root.parent_stack.length > 0 && $root.frontpage_text" v-html="$root.frontpage_text"></div>'
+        + '<pretix-widget-event-list-filter-form v-if="!$root.disable_filters && $root.meta_filter_fields.length > 0"></pretix-widget-event-list-filter-form>'
         + '<pretix-widget-event-list-entry v-for="event in $root.events" :event="event" :key="event.url"></pretix-widget-event-list-entry>'
         + '<p class="pretix-widget-event-list-load-more" v-if="$root.has_more_events"><button @click.prevent.stop="load_more">'+strings.load_more+'</button></p>'
         + '</div>'),
@@ -1345,6 +1401,9 @@ Vue.component('pretix-widget-event-calendar', {
         + '</div>'
         + '<div class="pretix-widget-event-description" v-if="$root.parent_stack.length > 0 && $root.frontpage_text" v-html="$root.frontpage_text"></div>'
 
+        // Filter
+        + '<pretix-widget-event-list-filter-form v-if="!$root.disable_filters && $root.meta_filter_fields.length > 0"></pretix-widget-event-list-filter-form>'
+
         // Calendar navigation
         + '<div class="pretix-widget-event-calendar-head">'
         + '<a class="pretix-widget-event-calendar-previous-month" href="#" @click.prevent.stop="prevmonth" role="button">&laquo; '
@@ -1427,6 +1486,9 @@ Vue.component('pretix-widget-event-week-calendar', {
         + '<strong>{{ $root.name }}</strong>'
         + '</div>'
 
+        // Filter
+        + '<pretix-widget-event-list-filter-form v-if="!$root.disable_filters && $root.meta_filter_fields.length > 0"></pretix-widget-event-list-filter-form>'
+
         // Calendar navigation
         + '<div class="pretix-widget-event-description" v-if="$root.parent_stack.length > 0 && $root.frontpage_text" v-html="$root.frontpage_text"></div>'
         + '<div class="pretix-widget-event-calendar-head">'
@@ -1493,7 +1555,6 @@ Vue.component('pretix-widget-event-week-calendar', {
 Vue.component('pretix-widget', {
     template: ('<div class="pretix-widget-wrapper" ref="wrapper">'
         + '<div :class="classObject">'
-        + '<resize-observer @notify="handleResize" />'
         + shared_loading_fragment
         + '<div class="pretix-widget-error-message" v-if="$root.error && $root.view !== \'event\'">{{ $root.error }}</div>'
         + '<div class="pretix-widget-error-action" v-if="$root.error && $root.connection_error"><a :href="$root.newTabTarget" class="pretix-widget-button" target="_blank">'
@@ -1513,7 +1574,22 @@ Vue.component('pretix-widget', {
     data: shared_widget_data,
     methods: shared_methods,
     mounted: function () {
-        this.mobile = this.$refs.wrapper.clientWidth <= 600;
+        var thisObj = this;
+        if ("ResizeObserver" in window) {
+            var resizeObserver = new ResizeObserver(function(entries) {
+                thisObj.mobile = entries[0].contentRect.width <= 800;
+            });
+            resizeObserver.observe(this.$refs.wrapper);
+        } else {
+            this.mobile = this.$refs.wrapper.clientWidth <= 800;
+            var debounce;
+            window.addEventListener("resize", function() {
+                if (debounce) clearTimeout(debounce);
+                debounce = setTimeout(function () {
+                    thisObj.mobile = thisObj.$refs.wrapper.clientWidth <= 800;
+                }, 100);
+            });
+        }
     },
     computed: {
         classObject: function () {
@@ -1642,6 +1718,7 @@ var shared_root_methods = {
                 root.view = "weeks";
                 root.name = data.name;
                 root.frontpage_text = data.frontpage_text;
+                root.meta_filter_fields = data.meta_filter_fields;
             } else if (data.days !== undefined) {
                 root.days = data.days;
                 root.date = null;
@@ -1650,6 +1727,7 @@ var shared_root_methods = {
                 root.view = "days";
                 root.name = data.name;
                 root.frontpage_text = data.frontpage_text;
+                root.meta_filter_fields = data.meta_filter_fields;
             } else if (data.events !== undefined) {
                 root.events = root.append_events && root.events ? root.events.concat(data.events) : data.events;
                 root.append_events = false;
@@ -1658,8 +1736,13 @@ var shared_root_methods = {
                 root.name = data.name;
                 root.frontpage_text = data.frontpage_text;
                 root.has_more_events = data.has_more_events;
+                root.meta_filter_fields = data.meta_filter_fields;
             } else {
                 root.view = "event";
+                // Replace target_url and subevent with canonical values in case they were slightly wrong
+                root.target_url = data.target_url;
+                root.subevent = data.subevent;
+                // Event data
                 root.name = data.name;
                 root.frontpage_text = data.frontpage_text;
                 root.date_range = data.date_range;
@@ -1707,11 +1790,10 @@ var shared_root_methods = {
         });
     },
     startwaiting: function () {
-        var redirect_url = this.$root.target_url + 'w/' + widget_id;
+        var redirect_url = this.$root.target_url + 'w/' + widget_id + '/waitinglist/?iframe=1&locale=' + lang;
         if (this.$root.subevent){
-            redirect_url += '/' + this.$root.subevent;
+            redirect_url += '&subevent=' + this.$root.subevent;
         }
-        redirect_url += '/waitinglist/?iframe=1&locale=' + lang;
         if (this.$root.useIframe) {
             var iframe = this.$root.overlay.$children[0].$refs['frame-container'].children[0];
             this.$root.overlay.frame_loading = true;
@@ -1889,11 +1971,13 @@ var create_widget = function (element) {
     var skip_ssl = element.attributes["skip-ssl-check"] ? true : false;
     var disable_iframe = element.attributes["disable-iframe"] ? true : false;
     var disable_vouchers = element.attributes["disable-vouchers"] ? true : false;
+    var disable_filters = element.attributes["disable-filters"] ? true : false;
     var widget_data = JSON.parse(JSON.stringify(window.PretixWidget.widget_data));
     var filter = element.attributes.filter ? element.attributes.filter.value : null;
     var items = element.attributes.items ? element.attributes.items.value : null;
     var variations = element.attributes.variations ? element.attributes.variations.value : null;
     var categories = element.attributes.categories ? element.attributes.categories.value : null;
+    var single_item_select = element.getAttribute("single-item-select") || "checkbox";
     for (var i = 0; i < element.attributes.length; i++) {
         var attrib = element.attributes[i];
         if (attrib.name.match(/^data-.*$/)) {
@@ -1901,8 +1985,19 @@ var create_widget = function (element) {
         }
     }
 
+    var observer = new MutationObserver((mutationList) => {
+        mutationList.forEach((mutation) => {
+            if (mutation.type == "attributes" && mutation.attributeName.startsWith("data-")) {
+                Vue.set(app.widget_data, mutation.attributeName.substring(5), mutation.target.getAttribute(mutation.attributeName));
+            }
+        });
+    });
+    var observerOptions = { attributes: true };
+
     if (element.tagName !== "pretix-widget") {
         element.innerHTML = "<pretix-widget></pretix-widget>";
+        // we need to watch the container as well as the replaced root-node (see mounted())
+        observer.observe(element, observerOptions);
     }
 
     var app = new Vue({
@@ -1929,6 +2024,7 @@ var create_widget = function (element) {
                 voucher_code: voucher,
                 display_net_prices: false,
                 use_native_spinners: false,
+                single_item_select: single_item_select,
                 voucher_explanation_text: null,
                 show_variations_expanded: !!variations,
                 skip_ssl: skip_ssl,
@@ -1949,19 +2045,36 @@ var create_widget = function (element) {
                 widget_id: 'pretix-widget-' + widget_id,
                 vouchers_exist: false,
                 disable_vouchers: disable_vouchers,
+                disable_filters: disable_filters,
                 cart_exists: false,
                 itemcount: 0,
                 overlay: null,
                 poweredby: "",
                 has_seating_plan: false,
                 has_seating_plan_waitinglist: false,
+                meta_filter_fields: [],
             }
         },
         created: function () {
             this.reload();
         },
+        mounted: function () {
+            observer.observe(this.$el, observerOptions);
+        },
         computed: shared_root_computed,
-        methods: shared_root_methods
+        methods: shared_root_methods,
+        watch: {
+            'view': function (newValue, oldValue) {
+                if (oldValue) {
+                    // always make sure the widget is scrolled to the top
+                    // as we only check top, we do not need to wait for a redraw
+                    var rect = this.$el.getBoundingClientRect();
+                    if (rect.top < 0) {
+                        this.$el.scrollIntoView();
+                    }
+                }
+            }
+        }
     });
     create_overlay(app);
     return app;
@@ -1986,8 +2099,19 @@ var create_button = function (element) {
         }
     }
 
+    var observer = new MutationObserver((mutationList) => {
+        mutationList.forEach((mutation) => {
+            if (mutation.type == "attributes" && mutation.attributeName.startsWith("data-")) {
+                Vue.set(app.widget_data, mutation.attributeName.substring(5), mutation.target.getAttribute(mutation.attributeName));
+            }
+        });
+    });
+    var observerOptions = { attributes: true };
+
     if (element.tagName !== "pretix-button") {
         element.innerHTML = "<pretix-button>" + element.innerHTML + "</pretix-button>";
+        // Vue does not replace the container, so watch container as well
+        observer.observe(element, observerOptions);
     }
 
     var itemsplit = raw_items.split(",");
@@ -2019,6 +2143,9 @@ var create_button = function (element) {
             }
         },
         created: function () {
+        },
+        mounted: function () {
+            observer.observe(this.$el, observerOptions);
         },
         computed: shared_root_computed,
         methods: shared_root_methods

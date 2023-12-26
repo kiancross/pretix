@@ -275,6 +275,7 @@ class OrderListExporter(MultiSheetListExporter):
         headers.append(_('Invoice numbers'))
         headers.append(_('Sales channel'))
         headers.append(_('Requires special attention'))
+        headers.append(_('Check-in text'))
         headers.append(_('Comment'))
         headers.append(_('Follow-up date'))
         headers.append(_('Positions'))
@@ -332,7 +333,7 @@ class OrderListExporter(MultiSheetListExporter):
                 self.event_object_cache[order.event_id].slug,
                 order.code,
                 order.total,
-                order.get_status_display(),
+                order.get_extended_status_display(),
                 order.email,
                 str(order.phone) if order.phone else '',
                 order.datetime.astimezone(tz).strftime('%Y-%m-%d'),
@@ -384,6 +385,7 @@ class OrderListExporter(MultiSheetListExporter):
             row.append(order.invoice_numbers)
             row.append(order.sales_channel)
             row.append(_('Yes') if order.checkin_attention else _('No'))
+            row.append(order.checkin_text or "")
             row.append(order.comment or "")
             row.append(order.custom_followup_at.strftime("%Y-%m-%d") if order.custom_followup_at else "")
             row.append(order.pcnt)
@@ -463,7 +465,7 @@ class OrderListExporter(MultiSheetListExporter):
             row = [
                 self.event_object_cache[order.event_id].slug,
                 order.code,
-                _("canceled") if op.canceled else order.get_status_display(),
+                _("canceled") if op.canceled else order.get_extended_status_display(),
                 order.email,
                 str(order.phone) if order.phone else '',
                 order.datetime.astimezone(tz).strftime('%Y-%m-%d'),
@@ -549,7 +551,9 @@ class OrderListExporter(MultiSheetListExporter):
             headers.append(_('End date'))
         headers += [
             _('Product'),
+            _('Product ID'),
             _('Variation'),
+            _('Variation ID'),
             _('Price'),
             _('Tax rate'),
             _('Tax rule'),
@@ -636,7 +640,7 @@ class OrderListExporter(MultiSheetListExporter):
                     self.event_object_cache[order.event_id].slug,
                     order.code,
                     op.positionid,
-                    _("canceled") if op.canceled else order.get_status_display(),
+                    _("canceled") if op.canceled else order.get_extended_status_display(),
                     order.email,
                     str(order.phone) if order.phone else '',
                     order.datetime.astimezone(tz).strftime('%Y-%m-%d'),
@@ -656,7 +660,9 @@ class OrderListExporter(MultiSheetListExporter):
                         row.append('')
                 row += [
                     str(op.item),
+                    str(op.item_id),
                     str(op.variation) if op.variation else '',
+                    str(op.variation_id) if op.variation_id else '',
                     op.price,
                     op.tax_rate,
                     str(op.tax_rule) if op.tax_rule else '',
@@ -1003,20 +1009,20 @@ class PaymentListExporter(ListExporter):
         if form_data.get('end_date_range'):
             dt_start, dt_end = resolve_timeframe_to_datetime_start_inclusive_end_exclusive(now(), form_data['end_date_range'], self.timezone)
             if dt_start:
-                payments = payments.filter(created__gte=dt_start)
-                refunds = refunds .filter(created__gte=dt_start)
+                payments = payments.filter(payment_date__gte=dt_start)
+                refunds = refunds.filter(execution_date__gte=dt_start)
             if dt_end:
-                payments = payments.filter(created__lt=dt_end)
-                refunds = refunds .filter(created__lt=dt_end)
+                payments = payments.filter(payment_date__lt=dt_end)
+                refunds = refunds.filter(execution_date__lt=dt_end)
 
         if form_data.get('start_end_date_range'):
             dt_start, dt_end = resolve_timeframe_to_datetime_start_inclusive_end_exclusive(now(), form_data['start_date_range'], self.timezone)
             if dt_start:
-                payments = payments.filter(payment_date__gte=dt_start)
-                refunds = refunds .filter(execution_date__gte=dt_start)
+                payments = payments.filter(created__gte=dt_start)
+                refunds = refunds.filter(created__gte=dt_start)
             if dt_end:
-                payments = payments.filter(payment_date__lt=dt_end)
-                refunds = refunds.filter(execution_date__lt=dt_end)
+                payments = payments.filter(created__lt=dt_end)
+                refunds = refunds.filter(created__lt=dt_end)
 
         objs = sorted(list(payments) + list(refunds), key=lambda o: o.created)
 

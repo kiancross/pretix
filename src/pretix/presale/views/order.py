@@ -86,6 +86,7 @@ from pretix.base.signals import (
 from pretix.base.templatetags.money import money_filter
 from pretix.base.views.mixins import OrderQuestionsViewMixin
 from pretix.base.views.tasks import AsyncAction
+from pretix.helpers.http import redirect_to_url
 from pretix.helpers.safedownload import check_token
 from pretix.multidomain.urlreverse import build_absolute_uri, eventreverse
 from pretix.presale.forms.checkout import InvoiceAddressForm, QuestionsForm
@@ -261,7 +262,10 @@ class OrderDetails(EventViewMixin, OrderDetailMixin, CartMixin, TicketPageMixin,
             qs = qs.annotate(
                 checkin_count=Subquery(
                     Checkin.objects.filter(
-                        successful=True, type=Checkin.TYPE_ENTRY, position_id=OuterRef('pk')
+                        successful=True,
+                        type=Checkin.TYPE_ENTRY,
+                        position_id=OuterRef('pk'),
+                        list__consider_tickets_used=True,
                     ).order_by().values('position').annotate(c=Count('*')).values('c')
                 )
             )
@@ -301,9 +305,17 @@ class OrderDetails(EventViewMixin, OrderDetailMixin, CartMixin, TicketPageMixin,
             ctx['can_pay'] = False
 
             for provider in self.request.event.get_payment_providers().values():
-                if provider.is_enabled and provider.order_change_allowed(self.order):
-                    ctx['can_pay'] = True
-                    break
+                if provider.is_enabled:
+
+                    if 'request' in inspect.signature(provider.order_change_allowed).parameters:
+                        if provider.is_enabled and provider.order_change_allowed(self.order, request=self.request):
+                            ctx['can_pay'] = True
+                            break
+
+                    else:
+                        if provider.is_enabled and provider.order_change_allowed(self.order):
+                            ctx['can_pay'] = True
+                            break
 
             if lp and lp.state not in (OrderPayment.PAYMENT_STATE_CONFIRMED, OrderPayment.PAYMENT_STATE_REFUNDED,
                                        OrderPayment.PAYMENT_STATE_CANCELED):
@@ -373,7 +385,10 @@ class OrderPositionDetails(EventViewMixin, OrderPositionDetailMixin, CartMixin, 
             qs = qs.annotate(
                 checkin_count=Subquery(
                     Checkin.objects.filter(
-                        successful=True, type=Checkin.TYPE_ENTRY, position_id=OuterRef('pk')
+                        successful=True,
+                        type=Checkin.TYPE_ENTRY,
+                        position_id=OuterRef('pk'),
+                        list__consider_tickets_used=True,
                     ).order_by().values('position').annotate(c=Count('*')).values('c')
                 )
             )
@@ -421,9 +436,9 @@ class OrderPaymentStart(EventViewMixin, OrderDetailMixin, TemplateView):
         if 'payment_change_{}'.format(self.order.pk) in request.session:
             del request.session['payment_change_{}'.format(self.order.pk)]
         if isinstance(resp, str):
-            return redirect(resp)
+            return redirect_to_url(resp)
         elif resp is True:
-            return redirect(self.get_confirm_url())
+            return redirect_to_url(self.get_confirm_url())
         else:
             return self.get(request, *args, **kwargs)
 
@@ -488,9 +503,13 @@ class OrderPaymentConfirm(EventViewMixin, OrderDetailMixin, TemplateView):
 
     def post(self, request, *args, **kwargs):
         try:
-            if not self.order.invoices.exists() and invoice_qualified(self.order):
+            i = self.order.invoices.filter(is_cancellation=False).last()
+            has_active_invoice = i and not i.canceled
+            if (not has_active_invoice or self.order.invoice_dirty) and invoice_qualified(self.order):
                 if self.request.event.settings.get('invoice_generate') == 'True' or (
                         self.request.event.settings.get('invoice_generate') == 'paid' and self.payment.payment_provider.requires_invoice_immediately):
+                    if has_active_invoice:
+                        generate_cancellation(i)
                     i = generate_invoice(self.order)
                     self.order.log_action('pretix.event.order.invoice.generated', data={
                         'invoice': i.pk
@@ -511,7 +530,12 @@ class OrderPaymentConfirm(EventViewMixin, OrderDetailMixin, TemplateView):
         ctx['order'] = self.order
         ctx['payment'] = self.payment
         if 'order' in inspect.signature(self.payment.payment_provider.checkout_confirm_render).parameters:
-            ctx['payment_info'] = self.payment.payment_provider.checkout_confirm_render(self.request, order=self.order)
+            if 'info_data' in inspect.signature(self.payment.payment_provider.checkout_confirm_render).parameters:
+                ctx['payment_info'] = self.payment.payment_provider.checkout_confirm_render(
+                    self.request, order=self.order, info_data=self.payment.info_data
+                )
+            else:
+                ctx['payment_info'] = self.payment.payment_provider.checkout_confirm_render(self.request, order=self.order)
         else:
             ctx['payment_info'] = self.payment.payment_provider.checkout_confirm_render(self.request)
         ctx['payment_provider'] = self.payment.payment_provider
@@ -566,9 +590,9 @@ class OrderPaymentComplete(EventViewMixin, OrderDetailMixin, View):
             return redirect(self.get_order_url())
 
         if self.order.status == Order.STATUS_PAID:
-            return redirect(resp or self.get_order_url() + '?paid=yes')
+            return redirect_to_url(resp or self.get_order_url() + '?paid=yes')
         else:
-            return redirect(resp or self.get_order_url() + '?thanks=yes')
+            return redirect_to_url(resp or self.get_order_url() + '?thanks=yes')
 
     def get_payment_url(self):
         return eventreverse(self.request.event, 'presale:event.order.pay', kwargs={
@@ -668,9 +692,17 @@ class OrderPayChangeMethod(EventViewMixin, OrderDetailMixin, TemplateView):
     def provider_forms(self):
         providers = []
         pending_sum = self.order.pending_sum
-        for provider in self.request.event.get_payment_providers().values():
-            if not provider.is_enabled or not provider.order_change_allowed(self.order):
+        for provider in sorted(self.request.event.get_payment_providers().values(), key=lambda p: (-p.priority, str(p.public_name).title())):
+            if not provider.is_enabled:
                 continue
+
+            if 'request' in inspect.signature(provider.order_change_allowed).parameters:
+                if not provider.order_change_allowed(self.order, request=self.request):
+                    continue
+            else:
+                if not provider.order_change_allowed(self.order):
+                    continue
+
             current_fee = sum(f.value for f in self.open_fees) or Decimal('0.00')
             fee = provider.calculate_fee(pending_sum - current_fee)
             if 'order' in inspect.signature(provider.payment_form_render).parameters:
@@ -1176,9 +1208,9 @@ class OrderPositionGiftCardDetails(EventViewMixin, OrderPositionDetailMixin, Lis
 
     @cached_property
     def giftcard(self):
-        return GiftCard.objects.filter(
+        return get_object_or_404(GiftCard.objects.filter(
             Q(owner_ticket_id=self.position.pk) | Q(owner_ticket__addon_to_id=self.position.pk)
-        ).get(pk=self.kwargs['pk'])
+        ), pk=self.kwargs['pk'])
 
     def get_queryset(self):
         return self.giftcard.transactions.order_by('-datetime', '-pk')
@@ -1359,7 +1391,7 @@ class OrderChangeMixin:
                                         rate=a.tax_rate,
                                     )
                                 else:
-                                    v.initial_price = v.display_price
+                                    v.initial_price = v.suggested_price
                             i.expand = any(v.initial for v in i.available_variations)
                         else:
                             i.initial = len(current_addon_products[i.pk, None])
@@ -1373,7 +1405,7 @@ class OrderChangeMixin:
                                     rate=a.tax_rate,
                                 )
                             else:
-                                i.initial_price = i.display_price
+                                i.initial_price = i.suggested_price
 
                     if items:
                         p.addon_form['categories'].append({
@@ -1583,6 +1615,8 @@ class OrderChangeMixin:
             raise OrderError(_('You may only change your order in a way that increases the total price.'))
         if ocm._totaldiff != Decimal('0.00') and pr == 'eq':
             raise OrderError(_('You may not change your order in a way that changes the total price.'))
+        if ocm._totaldiff < Decimal('0.00') and self.order.total + ocm._totaldiff < self.order.payment_refund_sum and pr == 'gte_paid':
+            raise OrderError(_('You may not change your order in a way that would require a refund.'))
 
         if ocm._totaldiff > Decimal('0.00') and self.order.status == Order.STATUS_PAID:
             self.order.set_expires(

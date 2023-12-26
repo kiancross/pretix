@@ -202,6 +202,21 @@ class ParametrizedWaitingListEntryWebhookEvent(ParametrizedWebhookEvent):
         }
 
 
+class ParametrizedCustomerWebhookEvent(ParametrizedWebhookEvent):
+
+    def build_payload(self, logentry: LogEntry):
+        customer = logentry.content_object
+        if not customer:
+            return None
+
+        return {
+            'notification_id': logentry.pk,
+            'organizer': customer.organizer.slug,
+            'customer': customer.identifier,
+            'action': logentry.action_type,
+        }
+
+
 @receiver(register_webhook_events, dispatch_uid="base_register_default_webhook_events")
 def register_default_webhook_events(sender, **kwargs):
     return (
@@ -350,6 +365,18 @@ def register_default_webhook_events(sender, **kwargs):
             'pretix.event.orders.waitinglist.voucher_assigned',
             _('Waiting list entry received voucher'),
         ),
+        ParametrizedCustomerWebhookEvent(
+            'pretix.customer.created',
+            _('Customer account created'),
+        ),
+        ParametrizedCustomerWebhookEvent(
+            'pretix.customer.changed',
+            _('Customer account changed'),
+        ),
+        ParametrizedCustomerWebhookEvent(
+            'pretix.customer.anonymized',
+            _('Customer account anonymized'),
+        ),
     )
 
 
@@ -357,7 +384,7 @@ def register_default_webhook_events(sender, **kwargs):
 def notify_webhooks(logentry_ids: list):
     if not isinstance(logentry_ids, list):
         logentry_ids = [logentry_ids]
-    qs = LogEntry.all.select_related('event', 'event__organizer').filter(id__in=logentry_ids)
+    qs = LogEntry.all.select_related('event', 'event__organizer', 'organizer').filter(id__in=logentry_ids)
     _org, _at, webhooks = None, None, None
     for logentry in qs:
         if not logentry.organizer:

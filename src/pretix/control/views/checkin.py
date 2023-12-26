@@ -45,7 +45,7 @@ from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.timezone import is_aware, make_aware, now
 from django.utils.translation import gettext_lazy as _
-from django.views.generic import FormView, ListView
+from django.views.generic import FormView, ListView, TemplateView
 from i18nfield.strings import LazyI18nString
 
 from pretix.api.views.checkin import _redeem_process
@@ -61,7 +61,7 @@ from pretix.control.forms.checkin import (
     CheckinListForm, CheckinListSimulatorForm,
 )
 from pretix.control.forms.filter import (
-    CheckinFilterForm, CheckinListAttendeeFilterForm,
+    CheckinFilterForm, CheckinListAttendeeFilterForm, CheckinListFilterForm,
 )
 from pretix.control.permissions import EventPermissionRequiredMixin
 from pretix.control.views import CreateView, PaginationMixin, UpdateView
@@ -191,10 +191,23 @@ class CheckInListShow(EventPermissionRequiredMixin, PaginationMixin, CheckInList
         return ctx
 
 
+class CheckInListBulkRevertConfirmView(CheckInListQueryMixin, EventPermissionRequiredMixin, TemplateView):
+    template_name = "pretixcontrol/checkin/bulk_revert_confirm.html"
+
+    def post(self, request, *args, **kwargs):
+        self.list = get_object_or_404(self.request.event.checkin_lists.all(), pk=kwargs.get("list"))
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(
+            **kwargs,
+            cnt=self.get_queryset().count(),
+            checkinlist=self.list,
+        )
+
+
 class CheckInListBulkActionView(CheckInListQueryMixin, EventPermissionRequiredMixin, AsyncPostView):
-    template_name = 'pretixcontrol/organizers/device_bulk_edit.html'
     permission = ('can_change_orders', 'can_checkin_orders')
-    context_object_name = 'device'
 
     def dispatch(self, request, *args, **kwargs):
         self.list = get_object_or_404(self.request.event.checkin_lists.all(), pk=kwargs.get("list"))
@@ -217,14 +230,15 @@ class CheckInListBulkActionView(CheckInListQueryMixin, EventPermissionRequiredMi
                 if op.order.status == Order.STATUS_PAID or (
                     (self.list.include_pending or op.order.valid_if_pending) and op.order.status == Order.STATUS_PENDING
                 ):
-                    Checkin.objects.filter(position=op, list=self.list).delete()
-                    op.order.log_action('pretix.event.checkin.reverted', data={
-                        'position': op.id,
-                        'positionid': op.positionid,
-                        'list': self.list.pk,
-                        'web': True
-                    }, user=request.user)
-                    op.order.touch()
+                    _, deleted = Checkin.objects.filter(position=op, list=self.list).delete()
+                    if deleted:
+                        op.order.log_action('pretix.event.checkin.reverted', data={
+                            'position': op.id,
+                            'positionid': op.positionid,
+                            'list': self.list.pk,
+                            'web': True
+                        }, user=request.user)
+                        op.order.touch()
 
             return 'reverted', request.POST.get('returnquery')
         else:
@@ -279,13 +293,13 @@ class CheckinListList(EventPermissionRequiredMixin, PaginationMixin, ListView):
     context_object_name = 'checkinlists'
     permission = 'can_view_orders'
     template_name = 'pretixcontrol/checkin/lists.html'
+    ordering = ('subevent__date_from', 'name', 'pk')
 
     def get_queryset(self):
         qs = self.request.event.checkin_lists.select_related('subevent').prefetch_related("limit_products")
 
-        if self.request.GET.get("subevent", "") != "":
-            s = self.request.GET.get("subevent", "")
-            qs = qs.filter(subevent_id=s)
+        if self.filter_form.is_valid():
+            qs = self.filter_form.filter_qs(qs)
         return qs
 
     def get_context_data(self, **kwargs):
@@ -304,8 +318,13 @@ class CheckinListList(EventPermissionRequiredMixin, PaginationMixin, ListView):
             'can_change_organizer_settings',
             self.request
         )
+        ctx['filter_form'] = self.filter_form
 
         return ctx
+
+    @cached_property
+    def filter_form(self):
+        return CheckinListFilterForm(data=self.request.GET, event=self.request.event)
 
 
 class CheckinListCreate(EventPermissionRequiredMixin, CreateView):
@@ -491,6 +510,11 @@ class CheckInListSimulator(EventPermissionRequiredMixin, FormView):
         r['Content-Security-Policy'] = 'script-src \'unsafe-eval\''
         return r
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['event'] = self.request.event
+        return kwargs
+
     def get_initial(self):
         return {
             'datetime': now()
@@ -524,12 +548,16 @@ class CheckInListSimulator(EventPermissionRequiredMixin, FormView):
             request=self.request,  # this is not clean, but we need it in the serializers for URL generation
             legacy_url_support=False,
             simulate=True,
+            gate=form.cleaned_data.get("gate"),
         ).data
+
+        if self.result.get("position"):
+            op = OrderPosition.objects.get(pk=self.result["position"]["id"])
+            self.result["position_object"] = op
 
         if form.cleaned_data["checkin_type"] == Checkin.TYPE_ENTRY and self.list.rules and self.result.get("position")\
                 and (self.result["status"] in ("ok", "incomplete") or self.result["reason"] == "rules"):
-            op = OrderPosition.objects.get(pk=self.result["position"]["id"])
-            rule_data = LazyRuleVars(op, self.list, form.cleaned_data["datetime"])
+            rule_data = LazyRuleVars(op, self.list, form.cleaned_data["datetime"], form.cleaned_data.get("gate"))
             rule_graph = _logic_annotate_for_graphic_explain(self.list.rules, op.subevent or self.list.event, rule_data,
                                                              form.cleaned_data["datetime"])
             self.result["rule_graph"] = rule_graph

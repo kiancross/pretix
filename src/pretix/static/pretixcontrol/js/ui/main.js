@@ -328,7 +328,7 @@ var form_handlers = function (el) {
             update = function () {
                 var enabled = dependency.prop('checked');
                 dependent.prop('disabled', !enabled).closest('.form-group, .form-field-boundary').toggleClass('disabled', !enabled);
-                if (!enabled && !$(this).is('[data-checkbox-dependency-visual]')) {
+                if (!enabled && !dependent.is('[data-checkbox-dependency-visual]')) {
                     dependent.prop('checked', false);
                 }
             };
@@ -699,6 +699,38 @@ var form_handlers = function (el) {
     el.find("input[name*=question], select[name*=question]").change(questions_toggle_dependent);
     questions_toggle_dependent();
     questions_init_photos(el);
+
+    var lastFocusedInput;
+    $(document).on('focusin', 'input, textarea', function(e) {
+        lastFocusedInput = e.target;
+    }).on("click", function(e) {
+        if (e.target.classList.contains('content-placeholder')) {
+            var container = e.target.closest(".form-group");
+            if (!lastFocusedInput || !container.contains(lastFocusedInput)) {
+                lastFocusedInput = container.querySelector("input, textarea");
+                //lastFocusedInput.selectionStart = lastFocusedInput.selectionEnd = lastFocusedInput.value.length;
+            }
+            if (lastFocusedInput) {
+                var start = lastFocusedInput.selectionStart;
+                var end = lastFocusedInput.selectionEnd;
+                var v = lastFocusedInput.value;
+                var p = e.target.textContent;
+                var phStart = /\{\w*$/.exec(v.substring(0, start));
+                var phEnd = /^\w*\}/.exec(v.substring(end));
+                if (phStart) {
+                    start -= phStart[0].length
+                }
+                if (phEnd) {
+                    end += phEnd[0].length;
+                }
+
+                lastFocusedInput.value = v.substring(0, start) + p + v.substring(end);
+                lastFocusedInput.selectionStart = start;
+                lastFocusedInput.selectionEnd = start + p.length
+                lastFocusedInput.focus();
+            }
+        }
+    });
 };
 
 function setup_basics(el) {
@@ -737,6 +769,19 @@ function setup_basics(el) {
             span: [],
             strong: [],
             u: [],
+        }
+    });
+
+    el.find('a.pagination-selection').click(function (e) {
+        e.preventDefault();
+        var max = parseInt($(this).data("max"))
+        var inp = prompt(gettext("Enter page number between 1 and %(max)s.").replace("%(max)s", max));
+        if (inp) {
+            if (!parseInt(inp) || parseInt(inp) < 1 || parseInt(inp) > max) {
+                alert(gettext("Invalid page number."));
+            } else {
+                location.href = $(this).attr("data-href").replace("_PAGE_", inp);
+            }
         }
     });
 
@@ -784,7 +829,7 @@ function setup_basics(el) {
     el.find("input[data-toggle-table]").each(function (ev) {
         var $toggle = $(this);
         var $actionButtons = $(".batch-select-actions button", this.form);
-        var countLabels = $("<span></span>").appendTo($actionButtons);
+        var countLabels = $("<span></span>").appendTo($actionButtons.filter(function () { return !$(this).closest(".dropdown-menu").length }));
         var $table = $toggle.closest("table");
         var $selectAll = $table.find(".table-select-all");
         var $rows = $table.find("tbody tr");

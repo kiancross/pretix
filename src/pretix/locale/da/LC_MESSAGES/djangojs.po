@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-07-21 11:46+0000\n"
+"POT-Creation-Date: 2023-12-23 10:30+0000\n"
 "PO-Revision-Date: 2022-12-01 17:00+0000\n"
 "Last-Translator: Mie Frydensbjerg <mif@aarhus.dk>\n"
 "Language-Team: Danish <https://translate.pretix.eu/projects/pretix/pretix-js/"
@@ -131,7 +131,7 @@ msgstr ""
 msgid "Mercado Pago"
 msgstr ""
 
-#: pretix/plugins/paypal2/static/pretixplugins/paypal2/pretix-paypal.js:164
+#: pretix/plugins/paypal2/static/pretixplugins/paypal2/pretix-paypal.js:167
 #: pretix/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:48
 #, fuzzy
 #| msgctxt "widget"
@@ -139,13 +139,14 @@ msgstr ""
 msgid "Continue"
 msgstr "Fortsæt"
 
-#: pretix/plugins/paypal2/static/pretixplugins/paypal2/pretix-paypal.js:222
-#: pretix/plugins/stripe/static/pretixplugins/stripe/pretix-stripe.js:204
-#: pretix/plugins/stripe/static/pretixplugins/stripe/pretix-stripe.js:235
+#: pretix/plugins/paypal2/static/pretixplugins/paypal2/pretix-paypal.js:225
+#: pretix/plugins/stripe/static/pretixplugins/stripe/pretix-stripe.js:229
+#: pretix/plugins/stripe/static/pretixplugins/stripe/pretix-stripe.js:262
+#: pretix/plugins/stripe/static/pretixplugins/stripe/pretix-stripe.js:280
 msgid "Confirming your payment …"
 msgstr "Bekræfter din betaling …"
 
-#: pretix/plugins/paypal2/static/pretixplugins/paypal2/pretix-paypal.js:247
+#: pretix/plugins/paypal2/static/pretixplugins/paypal2/pretix-paypal.js:254
 msgid "Payment method unavailable"
 msgstr "Betalingsmetode er ikke tilgængelig"
 
@@ -163,15 +164,15 @@ msgstr "Betalte bestillinger"
 msgid "Total revenue"
 msgstr "Omsætning i alt"
 
-#: pretix/plugins/stripe/static/pretixplugins/stripe/pretix-stripe.js:13
+#: pretix/plugins/stripe/static/pretixplugins/stripe/pretix-stripe.js:15
 msgid "Contacting Stripe …"
 msgstr "Kontakter Stripe …"
 
-#: pretix/plugins/stripe/static/pretixplugins/stripe/pretix-stripe.js:70
+#: pretix/plugins/stripe/static/pretixplugins/stripe/pretix-stripe.js:72
 msgid "Total"
 msgstr "Total"
 
-#: pretix/plugins/stripe/static/pretixplugins/stripe/pretix-stripe.js:211
+#: pretix/plugins/stripe/static/pretixplugins/stripe/pretix-stripe.js:236
 msgid "Contacting your bank …"
 msgstr "Kontakter din bank …"
 
@@ -309,18 +310,34 @@ msgid "Ticket code is ambiguous on list"
 msgstr ""
 
 #: pretix/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:65
+msgid "Order not approved"
+msgstr ""
+
+#: pretix/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:66
 #, fuzzy
 #| msgid "Check-in QR"
 msgid "Checked-in Tickets"
 msgstr "Check-in QR"
 
-#: pretix/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:66
+#: pretix/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:67
 msgid "Valid Tickets"
 msgstr "Gyldige billetter"
 
-#: pretix/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:67
+#: pretix/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:68
 msgid "Currently inside"
 msgstr "Inde i øjeblikket"
+
+#: pretix/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:69
+#: pretix/static/pretixcontrol/js/ui/question.js:137
+#: pretix/static/pretixpresale/js/ui/questions.js:270
+msgid "Yes"
+msgstr "Ja"
+
+#: pretix/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:70
+#: pretix/static/pretixcontrol/js/ui/question.js:138
+#: pretix/static/pretixpresale/js/ui/questions.js:270
+msgid "No"
+msgstr "Nej"
 
 #: pretix/static/lightbox/js/lightbox.js:96
 #, fuzzy
@@ -417,96 +434,113 @@ msgstr "Kopieret!"
 msgid "Press Ctrl-C to copy!"
 msgstr "Tryk Ctrl-C eller ⌘-C for at kopiere!"
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:10
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:16
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:12
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:18
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:24
 msgid "is one of"
 msgstr "er en af"
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:22
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:30
 msgid "is before"
 msgstr "er før"
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:26
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:34
 msgid "is after"
 msgstr "er efter"
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:59
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:93
 msgid "Product"
 msgstr "Produkt"
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:63
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:97
 msgid "Product variation"
 msgstr "Produktvariation"
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:67
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:101
+msgid "Gate"
+msgstr ""
+
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:105
 msgid "Current date and time"
 msgstr "Aktuel dato og klokkeslæt"
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:71
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:109
 msgid "Current day of the week (1 = Monday, 7 = Sunday)"
 msgstr "Aktuel ugedag (1 = mandag, 7 = søndag)"
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:75
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:113
 msgid "Number of previous entries"
 msgstr "Antal tidligere poster"
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:79
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:117
 msgid "Number of previous entries since midnight"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:83
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:121
+#, fuzzy
+#| msgid "Number of previous entries"
+msgid "Number of previous entries since"
+msgstr "Antal tidligere poster"
+
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:125
+#, fuzzy
+#| msgid "Number of previous entries"
+msgid "Number of previous entries before"
+msgstr "Antal tidligere poster"
+
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:129
 msgid "Number of days with a previous entry"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:87
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:133
 msgid "Minutes since last entry (-1 on first entry)"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:91
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:137
 msgid "Minutes since first entry (-1 on first entry)"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:118
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:164
 msgid "All of the conditions below (AND)"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:119
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:165
 msgid "At least one of the conditions below (OR)"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:120
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:166
 msgid "Event start"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:121
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:167
 msgid "Event end"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:122
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:168
 msgid "Event admission"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:123
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:169
 msgid "custom date and time"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:124
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:170
 msgid "custom time"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:125
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:171
 msgid "Tolerance (minutes)"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:126
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:172
 msgid "Add condition"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:127
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:173
 msgid "minutes"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/checkinrules.js:128
+#: pretix/static/pretixcontrol/js/ui/checkinrules.js:174
 msgid "Duplicate"
 msgstr ""
 
@@ -518,46 +552,46 @@ msgstr "Check-in QR"
 msgid "The PDF background file could not be loaded for the following reason:"
 msgstr "Baggrunds-pdf'en kunne ikke hentes af følgende grund:"
 
-#: pretix/static/pretixcontrol/js/ui/editor.js:648
+#: pretix/static/pretixcontrol/js/ui/editor.js:656
 msgid "Group of objects"
 msgstr "Gruppe af objekter"
 
-#: pretix/static/pretixcontrol/js/ui/editor.js:653
+#: pretix/static/pretixcontrol/js/ui/editor.js:661
 msgid "Text object"
 msgstr "Tekstobjekt"
 
-#: pretix/static/pretixcontrol/js/ui/editor.js:655
+#: pretix/static/pretixcontrol/js/ui/editor.js:663
 msgid "Barcode area"
 msgstr "QR-kode-område"
 
-#: pretix/static/pretixcontrol/js/ui/editor.js:657
+#: pretix/static/pretixcontrol/js/ui/editor.js:665
 #, fuzzy
 #| msgid "Barcode area"
 msgid "Image area"
 msgstr "QR-kode-område"
 
-#: pretix/static/pretixcontrol/js/ui/editor.js:659
+#: pretix/static/pretixcontrol/js/ui/editor.js:667
 msgid "Powered by pretix"
 msgstr "Drevet af pretix"
 
-#: pretix/static/pretixcontrol/js/ui/editor.js:661
+#: pretix/static/pretixcontrol/js/ui/editor.js:669
 msgid "Object"
 msgstr "Objekt"
 
-#: pretix/static/pretixcontrol/js/ui/editor.js:665
+#: pretix/static/pretixcontrol/js/ui/editor.js:673
 msgid "Ticket design"
 msgstr "Billetdesign"
 
-#: pretix/static/pretixcontrol/js/ui/editor.js:964
+#: pretix/static/pretixcontrol/js/ui/editor.js:972
 msgid "Saving failed."
 msgstr "Gem fejlede."
 
-#: pretix/static/pretixcontrol/js/ui/editor.js:1033
-#: pretix/static/pretixcontrol/js/ui/editor.js:1083
+#: pretix/static/pretixcontrol/js/ui/editor.js:1041
+#: pretix/static/pretixcontrol/js/ui/editor.js:1091
 msgid "Error while uploading your PDF file, please try again."
 msgstr "Fejl under upload af pdf. Prøv venligt igen."
 
-#: pretix/static/pretixcontrol/js/ui/editor.js:1066
+#: pretix/static/pretixcontrol/js/ui/editor.js:1074
 msgid "Do you really want to leave the editor without saving your changes?"
 msgstr ""
 "Er du sikker på at du vil forlade editoren uden at gemme dine ændringer?"
@@ -605,15 +639,23 @@ msgstr "Ingen"
 msgid "Selected only"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/main.js:894
+#: pretix/static/pretixcontrol/js/ui/main.js:778
+msgid "Enter page number between 1 and %(max)s."
+msgstr ""
+
+#: pretix/static/pretixcontrol/js/ui/main.js:781
+msgid "Invalid page number."
+msgstr ""
+
+#: pretix/static/pretixcontrol/js/ui/main.js:939
 msgid "Use a different name internally"
 msgstr ""
 
-#: pretix/static/pretixcontrol/js/ui/main.js:934
+#: pretix/static/pretixcontrol/js/ui/main.js:979
 msgid "Click to close"
 msgstr "Klik for at lukke"
 
-#: pretix/static/pretixcontrol/js/ui/main.js:1009
+#: pretix/static/pretixcontrol/js/ui/main.js:1054
 msgid "You have unsaved changes!"
 msgstr "Du har ændringer, der ikke er gemt!"
 
@@ -630,16 +672,6 @@ msgstr "Andre"
 #: pretix/static/pretixcontrol/js/ui/question.js:82
 msgid "Count"
 msgstr "Antal"
-
-#: pretix/static/pretixcontrol/js/ui/question.js:137
-#: pretix/static/pretixpresale/js/ui/questions.js:270
-msgid "Yes"
-msgstr "Ja"
-
-#: pretix/static/pretixcontrol/js/ui/question.js:138
-#: pretix/static/pretixpresale/js/ui/questions.js:270
-msgid "No"
-msgstr "Nej"
 
 #: pretix/static/pretixcontrol/js/ui/subevent.js:111
 msgid "(one more date)"
@@ -712,24 +744,29 @@ msgstr "Din lokaltid:"
 msgid "Google Pay"
 msgstr "Apple Pay"
 
-#: pretix/static/pretixpresale/js/widget/widget.js:17
+#: pretix/static/pretixpresale/js/widget/widget.js:16
 msgctxt "widget"
 msgid "Quantity"
 msgstr ""
 
-#: pretix/static/pretixpresale/js/widget/widget.js:18
+#: pretix/static/pretixpresale/js/widget/widget.js:17
 msgctxt "widget"
 msgid "Decrease quantity"
 msgstr ""
 
-#: pretix/static/pretixpresale/js/widget/widget.js:19
+#: pretix/static/pretixpresale/js/widget/widget.js:18
 msgctxt "widget"
 msgid "Increase quantity"
 msgstr ""
 
-#: pretix/static/pretixpresale/js/widget/widget.js:20
+#: pretix/static/pretixpresale/js/widget/widget.js:19
 msgctxt "widget"
 msgid "Price"
+msgstr ""
+
+#: pretix/static/pretixpresale/js/widget/widget.js:20
+msgctxt "widget"
+msgid "Select"
 msgstr ""
 
 #: pretix/static/pretixpresale/js/widget/widget.js:21

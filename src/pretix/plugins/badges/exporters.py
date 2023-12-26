@@ -125,6 +125,22 @@ OPTIONS = OrderedDict([
         'offsets': [pagesizes.landscape(pagesizes.A4)[0] / 4, pagesizes.landscape(pagesizes.A4)[1] / 2],
         'pagesize': pagesizes.landscape(pagesizes.A4),
     }),
+    ('avery_63x29', {
+        'name': 'Avery Zweckform 63.5 x 29.6 mm (L4784)',
+        'cols': 3,
+        'rows': 9,
+        'margins': [15.3 * mm, 7.15 * mm, 15.3 * mm, 7.15 * mm],
+        'offsets': [66.1 * mm, 29.6 * mm],
+        'pagesize': pagesizes.A4,
+    }),
+    ('avery_80x50', {
+        'name': 'Avery Zweckform 80 x 50 mm (L4785)',
+        'cols': 2,
+        'rows': 5,
+        'margins': [13.5 * mm, 17.5 * mm, 13.5 * mm, 17.5 * mm],
+        'offsets': [95 * mm, 55 * mm],
+        'pagesize': pagesizes.A4,
+    }),
     ('durable_54x90', {
         'name': 'DURABLE BADGEMAKER® 54 x 90 mm (1445-02)',
         'cols': 2,

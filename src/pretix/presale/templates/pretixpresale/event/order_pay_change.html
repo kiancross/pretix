@@ -13,17 +13,19 @@
             Choose payment method: {{ code }}
         {% endblocktrans %}
     </h2>
-    <p>
-        {% blocktrans trimmed %}
-            Please note: If you change your payment method, your order total will change by the
-            amount displayed to the right of each method.
-        {% endblocktrans %}
-    </p>
+    {% if show_fees %}
+        <p>
+            {% blocktrans trimmed %}
+                Please note: If you change your payment method, your order total will change by the
+                amount displayed to the right of each method.
+            {% endblocktrans %}
+        </p>
+    {% endif %}
     <form method="post">
         {% csrf_token %}
         <div class="panel-group" id="payment_accordion">
             {% for p in providers %}
-                <div class="panel panel-default" data-total="{{ p.total|floatformat:2 }}">
+                <div class="panel panel-default" data-total="{{ p.total|money_numberfield:request.event.currency }}">
                     <div class="panel-heading">
                         <h4 class="panel-title">
                             <label class="radio">

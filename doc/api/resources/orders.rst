@@ -20,6 +20,7 @@ The order resource contains the following public fields:
 Field                                 Type                       Description
 ===================================== ========================== =======================================================
 code                                  string                     Order code
+event                                 string                     The slug of the parent event
 status                                string                     Order status, one of:
 
                                                                  * ``n`` – pending
@@ -45,6 +46,8 @@ custom_followup_at                    date                       Internal date f
 checkin_attention                     boolean                    If ``true``, the check-in app should show a warning
                                                                  that this ticket requires special attention if a ticket
                                                                  of this order is scanned.
+checkin_text                          string                     Text that will be shown if a ticket of this order is
+                                                                 scanned (or ``null``).
 invoice_address                       object                     Invoice address information (can be ``null``)
 ├ last_modified                       datetime                   Last modification date of the address
 ├ company                             string                     Customer company name
@@ -129,6 +132,22 @@ last_modified                         datetime                   Last modificati
 .. versionchanged:: 4.16
 
    The ``valid_if_pending`` attribute has been added.
+
+.. versionchanged:: 2023.8
+
+   The ``event`` attribute has been added. The organizer-level endpoint has been added.
+
+.. versionchanged:: 2023.9
+
+   The ``customer`` query parameter has been added.
+
+.. versionchanged:: 2023.10
+
+   The ``checkin_text`` attribute has been added.
+
+.. versionchanged:: 2024.1
+
+   The ``expires`` attribute can now be passed during order creation.
 
 
 .. _order-position-resource:
@@ -289,6 +308,7 @@ List of all orders
         "results": [
           {
             "code": "ABC12",
+            "event": "sampleconf",
             "status": "p",
             "testmode": false,
             "secret": "k24fiuwvu8kxz3y1",
@@ -308,6 +328,7 @@ List of all orders
             "comment": "",
             "custom_followup_at": null,
             "checkin_attention": false,
+            "checkin_text": null,
             "require_approval": false,
             "valid_if_pending": false,
             "invoice_address": {
@@ -414,6 +435,7 @@ List of all orders
    :query string code: Only return orders that match the given order code
    :query string status: Only return orders in the given order status (see above)
    :query string search: Only return orders matching a given search query (matching for names, email addresses, and company names)
+   :query string customer: Only show orders linked to the given customer.
    :query integer item: Only return orders with a position that contains this item ID. *Warning:* Result will also include orders if they contain mixed items, and it will even return orders where the item is only contained in a canceled position.
    :query integer variation: Only return orders with a position that contains this variation ID. *Warning:* Result will also include orders if they contain mixed items and variations, and it will even return orders where the variation is only contained in a canceled position.
    :query boolean testmode: Only return orders with ``testmode`` set to ``true`` or ``false``
@@ -437,6 +459,48 @@ List of all orders
    :param event: The ``slug`` field of the event to fetch
    :resheader X-Page-Generated: The server time at the beginning of the operation. If you're using this API to fetch
                                 differences, this is the value you want to use as ``modified_since`` in your next call.
+   :statuscode 200: no error
+   :statuscode 401: Authentication failure
+   :statuscode 403: The requested organizer/event does not exist **or** you have no permission to view this resource.
+
+.. http:get:: /api/v1/organizers/(organizer)/orders/
+
+   Returns a list of all orders within all events of a given organizer (with sufficient access permissions).
+
+   Supported query parameters and output format of this endpoint are identical to the list endpoint within an event,
+   with the exception that the ``pdf_data`` parameter is not supported here.
+
+   **Example request**:
+
+   .. sourcecode:: http
+
+      GET /api/v1/organizers/bigevents/orders/ HTTP/1.1
+      Host: pretix.eu
+      Accept: application/json, text/javascript
+
+   **Example response**:
+
+   .. sourcecode:: http
+
+      HTTP/1.1 200 OK
+      Vary: Accept
+      Content-Type: application/json
+      X-Page-Generated: 2017-12-01T10:00:00Z
+
+      {
+        "count": 1,
+        "next": null,
+        "previous": null,
+        "results": [
+          {
+            "code": "ABC12",
+            "event": "sampleconf",
+            ...
+          }
+        ]
+      }
+
+   :param organizer: The ``slug`` field of the organizer to fetch
    :statuscode 200: no error
    :statuscode 401: Authentication failure
    :statuscode 403: The requested organizer/event does not exist **or** you have no permission to view this resource.
@@ -466,6 +530,7 @@ Fetching individual orders
 
       {
         "code": "ABC12",
+        "event": "sampleconf",
         "status": "p",
         "testmode": false,
         "secret": "k24fiuwvu8kxz3y1",
@@ -485,6 +550,7 @@ Fetching individual orders
         "comment": "",
         "custom_followup_at": null,
         "checkin_attention": false,
+        "checkin_text": null,
         "require_approval": false,
         "valid_if_pending": false,
         "invoice_address": {
@@ -655,6 +721,8 @@ Updating order fields
 
    * ``checkin_attention``
 
+   * ``checkin_text``
+
    * ``locale``
 
    * ``comment``
@@ -664,6 +732,8 @@ Updating order fields
    * ``invoice_address`` (you always need to supply the full object, or ``null`` to delete the current address)
 
    * ``valid_if_pending``
+
+   * ``expires``
 
    **Example request**:
 
@@ -870,6 +940,7 @@ Creating orders
    * ``comment`` (optional)
    * ``custom_followup_at`` (optional)
    * ``checkin_attention`` (optional)
+   * ``checkin_text`` (optional)
    * ``require_approval`` (optional)
    * ``valid_if_pending`` (optional)
    * ``invoice_address`` (optional)
@@ -1517,6 +1588,7 @@ List of all order positions
                            ``order__datetime,positionid``
    :query string order: Only return positions of the order with the given order code
    :query string search: Fuzzy search matching the attendee name, order code, invoice address name as well as to the beginning of the secret.
+   :query string customer: Only show orders linked to the given customer.
    :query integer item: Only return positions with the purchased item matching the given ID.
    :query integer item__in: Only return positions with the purchased item matching one of the given comma-separated IDs.
    :query integer variation: Only return positions with the purchased item variation matching the given ID.

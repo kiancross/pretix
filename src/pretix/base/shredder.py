@@ -153,19 +153,47 @@ class BaseDataShredder:
 
 
 def shred_log_fields(logentry, banlist=None, whitelist=None):
+    def _shred(d, banlist, whitelist):
+        shredded = False
+        if whitelist:
+            for k, v in d.items():
+                if k not in whitelist:
+                    if isinstance(d[k], list):
+                        newlist = []
+                        for i in d[k]:
+                            if isinstance(i, dict):
+                                _shred(i, None, [None])
+                            else:
+                                i = '█'
+                            newlist.append(i)
+                        d[k] = newlist
+                    elif isinstance(d[k], dict):
+                        _shred(d[k], None, [None])
+                    elif d[k]:
+                        d[k] = '█'
+                    shredded = True
+        elif banlist:
+            for k in banlist:
+                if k in d:
+                    if isinstance(d[k], list):
+                        newlist = []
+                        for i in d[k]:
+                            if isinstance(i, dict):
+                                _shred(i, None, [None])
+                            else:
+                                i = '█'
+                            newlist.append(i)
+                        d[k] = newlist
+                    elif isinstance(d[k], dict):
+                        _shred(d[k], None, [None])
+                    elif d[k]:
+                        d[k] = '█'
+                    shredded = True
+        return shredded
+
     d = logentry.parsed_data
     initial_data = copy.copy(d)
-    shredded = False
-    if whitelist:
-        for k, v in d.items():
-            if k not in whitelist:
-                d[k] = '█'
-                shredded = True
-    elif banlist:
-        for f in banlist:
-            if f in d:
-                d[f] = '█'
-                shredded = True
+    shredded = _shred(d, banlist, whitelist)
     if d != initial_data:
         logentry.data = json.dumps(d)
         logentry.shredded = logentry.shredded or shredded
@@ -210,6 +238,8 @@ def slow_delete(qs, batch_size=1000, sleep_time=.5, progress_callback=None, prog
             break
         if total_deleted >= 0.8 * batch_size:
             time.sleep(sleep_time)
+        if progress_callback and progress_total:
+            progress_callback((progress_offset + total_deleted) / progress_total)
     return total_deleted
 
 

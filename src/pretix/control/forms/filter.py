@@ -1304,6 +1304,8 @@ class GiftCardFilterForm(FilterForm):
         'issuance': 'issuance',
         'expires': F('expires').asc(nulls_last=True),
         '-expires': F('expires').desc(nulls_first=True),
+        'last_tx': F('last_tx').asc(nulls_first=True),
+        '-last_tx': F('last_tx').desc(nulls_last=True),
         'secret': 'secret',
         'value': 'cached_value',
     }
@@ -1597,6 +1599,20 @@ class EventFilterForm(FilterForm):
         }),
         required=False
     )
+    date_from = forms.DateField(
+        label=_('Date from'),
+        required=False,
+        widget=DatePickerWidget({
+            'placeholder': _('Date from'),
+        }),
+    )
+    date_until = forms.DateField(
+        label=_('Date until'),
+        required=False,
+        widget=DatePickerWidget({
+            'placeholder': _('Date until'),
+        }),
+    )
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request')
@@ -1678,6 +1694,22 @@ class EventFilterForm(FilterForm):
                 Q(name__icontains=i18ncomp(query)) | Q(slug__icontains=query)
             )
 
+        if fdata.get('date_until'):
+            date_end = make_aware(datetime.combine(
+                fdata.get('date_until') + timedelta(days=1),
+                time(hour=0, minute=0, second=0, microsecond=0)
+            ), get_current_timezone())
+            qs = qs.filter(
+                Q(date_to__isnull=True, date_from__lt=date_end) |
+                Q(date_to__isnull=False, date_to__lt=date_end)
+            )
+        if fdata.get('date_from'):
+            date_start = make_aware(datetime.combine(
+                fdata.get('date_from'),
+                time(hour=0, minute=0, second=0, microsecond=0)
+            ), get_current_timezone())
+            qs = qs.filter(date_from__gte=date_start)
+
         filters_by_property_name = {}
         for i, p in enumerate(self.meta_properties):
             d = fdata.get('meta_{}'.format(p.name))
@@ -1732,8 +1764,8 @@ class CheckinListAttendeeFilterForm(FilterForm):
         '-timestamp': (OrderBy(F('last_entry'), nulls_last=True, descending=True), '-order__code'),
         'item': ('item__name', 'variation__value', 'order__code'),
         '-item': ('-item__name', '-variation__value', '-order__code'),
-        'seat': ('seat__sorting_rank', 'seat__guid'),
-        '-seat': ('-seat__sorting_rank', '-seat__guid'),
+        'seat': ('seat__sorting_rank', 'seat__seat_guid'),
+        '-seat': ('-seat__sorting_rank', '-seat__seat_guid'),
         'date': ('subevent__date_from', 'subevent__id', 'order__code'),
         '-date': ('-subevent__date_from', 'subevent__id', '-order__code'),
         'name': {'_order': F('display_name').asc(nulls_first=True),
@@ -2072,7 +2104,8 @@ class VoucherFilterForm(FilterForm):
                 qs = qs.filter(Q(valid_until__isnull=False) & Q(valid_until__lt=now())).filter(redeemed=0)
             elif s == 'c':
                 checkins = Checkin.objects.filter(
-                    position__voucher=OuterRef('pk')
+                    position__voucher=OuterRef('pk'),
+                    list__consider_tickets_used=True,
                 )
                 qs = qs.annotate(has_checkin=Exists(checkins)).filter(
                     redeemed__gt=0, has_checkin=True
@@ -2395,6 +2428,61 @@ class CheckinFilterForm(FilterForm):
             qs = qs.filter(datetime__lte=fdata.get('datetime_until'))
 
         return qs
+
+
+class CheckinListFilterForm(FilterForm):
+    orders = {
+        "name": ("name", "subevent__date_from", "pk"),
+        "-name": ("-name", "-subevent__date_from", "-pk"),
+        "subevent": ("subevent__date_from", "name", "pk"),
+        "-subevent": ("-subevent__date_from", "-name", "-pk"),
+    }
+    subevent = forms.ModelChoiceField(
+        label=pgettext_lazy('subevent', 'Date'),
+        queryset=SubEvent.objects.none(),
+        required=False,
+        empty_label=pgettext_lazy('subevent', 'All dates')
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.event = kwargs.pop("event")
+        super().__init__(*args, **kwargs)
+        if self.event.has_subevents:
+            self.fields['subevent'].queryset = self.event.subevents.all()
+            self.fields['subevent'].widget = Select2(
+                attrs={
+                    'data-model-select2': 'event',
+                    'data-select2-url': reverse('control:event.subevents.select2', kwargs={
+                        'event': self.event.slug,
+                        'organizer': self.event.organizer.slug,
+                    }),
+                    'data-placeholder': pgettext_lazy('subevent', 'All dates')
+                }
+            )
+            self.fields['subevent'].widget.choices = self.fields['subevent'].choices
+        elif 'subevent':
+            del self.fields['subevent']
+
+    def filter_qs(self, qs):
+        fdata = self.cleaned_data
+
+        if fdata.get('subevent'):
+            qs = qs.filter(subevent=fdata.get('subevent'))
+
+        if fdata.get("ordering"):
+            ob = self.orders[fdata.get('ordering')]
+            if isinstance(ob, dict):
+                ob = dict(ob)
+                o = ob.pop('_order')
+                qs = qs.annotate(**ob).order_by(*get_deterministic_ordering(OrderPosition, [o]))
+            elif isinstance(ob, (list, tuple)):
+                qs = qs.order_by(*get_deterministic_ordering(OrderPosition, ob))
+            else:
+                qs = qs.order_by(*get_deterministic_ordering(OrderPosition, [ob]))
+        else:
+            qs = qs.order_by("subevent__date_from", "name", "pk")
+
+        return qs.distinct()
 
 
 class DeviceFilterForm(FilterForm):

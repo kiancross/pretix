@@ -147,6 +147,7 @@
                         {% bootstrap_field form.default_price addon_after=request.event.currency layout="control" %}
                         {% bootstrap_field form.tax_rule layout="control" %}
                         {% bootstrap_field form.free_price layout="control" %}
+                        {% bootstrap_field form.free_price_suggestion addon_after=request.event.currency layout="control" %}
                         {% bootstrap_field form.original_price addon_after=request.event.currency layout="control" %}
                     </fieldset>
                     <fieldset>
@@ -168,7 +169,10 @@
                         {% endif %}
                         {% bootstrap_field form.allow_cancel layout="control" %}
                         {% bootstrap_field form.allow_waitinglist layout="control" %}
-                        {% bootstrap_field form.hidden_if_available layout="control" %}
+                        {% if form.hidden_if_available %}
+                            {% bootstrap_field form.hidden_if_available layout="control" %}
+                        {% endif %}
+                        {% bootstrap_field form.hidden_if_item_available layout="control" %}
                     </fieldset>
                     {% for v in formsets.values %}
                         <fieldset>
@@ -198,6 +202,7 @@
                     <fieldset>
                         <legend>{% trans "Check-in & Validity" %}</legend>
                         {% bootstrap_field form.checkin_attention layout="control" %}
+                        {% bootstrap_field form.checkin_text layout="control" %}
                         {% bootstrap_field form.validity_mode layout="control" %}
                         <div data-display-dependency="#{{ form.validity_mode.id_for_label }}" data-display-dependency-value="fixed">
                             {% bootstrap_field form.validity_fixed_from layout="control" %}

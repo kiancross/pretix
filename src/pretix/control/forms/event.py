@@ -38,6 +38,7 @@ from decimal import Decimal
 from urllib.parse import urlencode, urlparse
 from zoneinfo import ZoneInfo
 
+import pycountry
 from django import forms
 from django.conf import settings
 from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
@@ -48,7 +49,7 @@ from django.forms import (
 )
 from django.urls import reverse
 from django.utils.functional import cached_property
-from django.utils.html import escape
+from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import gettext, gettext_lazy as _, pgettext_lazy
@@ -61,11 +62,13 @@ from pytz import common_timezones
 from pretix.base.channels import get_all_sales_channels
 from pretix.base.email import get_available_placeholders
 from pretix.base.forms import I18nModelForm, PlaceholderValidator, SettingsForm
+from pretix.base.forms.widgets import format_placeholders_help_text
 from pretix.base.models import Event, Organizer, TaxRule, Team
 from pretix.base.models.event import EventFooterLink, EventMetaValue, SubEvent
 from pretix.base.reldate import RelativeDateField, RelativeDateTimeField
 from pretix.base.settings import (
-    PERSON_NAME_SCHEMES, PERSON_NAME_TITLE_GROUPS, validate_event_settings,
+    COUNTRIES_WITH_STATE_IN_ADDRESS, DEFAULTS, PERSON_NAME_SCHEMES,
+    PERSON_NAME_TITLE_GROUPS, validate_event_settings,
 )
 from pretix.base.validators import multimail_validate
 from pretix.control.forms import (
@@ -205,7 +208,7 @@ class EventWizardBasicsForm(I18nModelForm):
             del self.fields['team']
         else:
             self.fields['team'].queryset = self.user.teams.filter(organizer=self.organizer)
-            if not self.organizer.settings.get("event_team_provisioning", True, as_type=bool):
+            if self.organizer.pk and not self.organizer.settings.get("event_team_provisioning", True, as_type=bool):
                 self.fields['team'].required = True
                 self.fields['team'].empty_label = None
                 self.fields['team'].initial = 0
@@ -313,12 +316,12 @@ class EventMetaValueForm(forms.ModelForm):
         self.property = kwargs.pop('property')
         self.disabled = kwargs.pop('disabled')
         super().__init__(*args, **kwargs)
-        if self.property.allowed_values:
+        if self.property.choices:
             self.fields['value'] = forms.ChoiceField(
                 label=self.property.name,
                 choices=[
                     ('', _('Default ({value})').format(value=self.property.default) if self.property.default else ''),
-                ] + [(a.strip(), a.strip()) for a in self.property.allowed_values.splitlines()],
+                ] + [(a.strip(), a.strip()) for a in self.property.choice_keys],
             )
         else:
             self.fields['value'].label = self.property.name
@@ -555,6 +558,7 @@ class EventSettingsForm(EventSettingsValidationMixin, SettingsForm):
         'low_availability_percentage',
         'event_list_type',
         'event_list_available_only',
+        'event_list_filters',
         'event_calendar_future_only',
         'frontpage_text',
         'event_info_text',
@@ -642,6 +646,7 @@ class EventSettingsForm(EventSettingsValidationMixin, SettingsForm):
             del self.fields['frontpage_subevent_ordering']
             del self.fields['event_list_type']
             del self.fields['event_list_available_only']
+            del self.fields['event_list_filters']
             del self.fields['event_calendar_future_only']
 
         # create "virtual" fields for better UX when editing <name>_asked and <name>_required fields
@@ -725,6 +730,8 @@ class CancelSettingsForm(SettingsForm):
         'cancel_allow_user_paid_refund_as_giftcard',
         'cancel_allow_user_paid_require_approval',
         'cancel_allow_user_paid_require_approval_fee_unknown',
+        'cancel_terms_paid',
+        'cancel_terms_unpaid',
         'change_allow_user_variation',
         'change_allow_user_price',
         'change_allow_user_until',
@@ -897,6 +904,27 @@ class InvoiceSettingsForm(EventSettingsValidationMixin, SettingsForm):
             (c.identifier, c.verbose_name) for c in get_all_sales_channels().values()
         )
         self.fields['invoice_numbers_counter_length'].validators.append(MaxValueValidator(15))
+
+        pps = [str(pp.verbose_name) for pp in event.get_payment_providers().values() if pp.requires_invoice_immediately]
+        if pps:
+            generate_paid_help_text = _('An invoice will be issued before payment if the customer selects one of the following payment methods: {list}').format(
+                list=', '.join(pps)
+            )
+        else:
+            generate_paid_help_text = _('None of the currently configured payment methods will cause an invoice to be issued before payment.')
+
+        generate_choices = list(DEFAULTS['invoice_generate']['form_kwargs']['choices'])
+        idx = [i for i, t in enumerate(generate_choices) if t[0] == 'paid'][0]
+        generate_choices[idx] = (
+            'paid',
+            format_html(
+                '{} <span class="label label-success">{}</span><br><span class="text-muted">{}</span>',
+                generate_choices[idx][1],
+                _('Recommended'),
+                generate_paid_help_text
+            )
+        )
+        self.fields['invoice_generate'].choices = generate_choices
 
 
 def contains_web_channel_validate(val):
@@ -1273,12 +1301,12 @@ class MailSettingsForm(SettingsForm):
         'mail_subject_order_placed_require_approval': ['event', 'order'],
         'mail_text_order_approved': ['event', 'order'],
         'mail_subject_order_approved': ['event', 'order'],
-        'mail_text_order_approved_attendee': ['event', 'order'],
-        'mail_subject_order_approved_attendee': ['event', 'order'],
+        'mail_text_order_approved_attendee': ['event', 'order', 'position'],
+        'mail_subject_order_approved_attendee': ['event', 'order', 'position'],
         'mail_text_order_approved_free': ['event', 'order'],
         'mail_subject_order_approved_free': ['event', 'order'],
-        'mail_text_order_approved_free_attendee': ['event', 'order'],
-        'mail_subject_order_approved_free_attendee': ['event', 'order'],
+        'mail_text_order_approved_free_attendee': ['event', 'order', 'position'],
+        'mail_subject_order_approved_free_attendee': ['event', 'order', 'position'],
         'mail_text_order_denied': ['event', 'order', 'comment'],
         'mail_subject_order_denied': ['event', 'order', 'comment'],
         'mail_text_order_paid': ['event', 'order', 'payment_info'],
@@ -1308,7 +1336,7 @@ class MailSettingsForm(SettingsForm):
         'mail_subject_download_reminder_attendee': ['event', 'order', 'position'],
         'mail_text_resend_link': ['event', 'order'],
         'mail_subject_resend_link': ['event', 'order'],
-        'mail_subject_resend_link_attendee': ['event', 'order'],
+        'mail_subject_resend_link_attendee': ['event', 'order', 'position'],
         'mail_text_waiting_list': ['event', 'waiting_list_entry', 'waiting_list_voucher'],
         'mail_subject_waiting_list': ['event', 'waiting_list_entry', 'waiting_list_voucher'],
         'mail_text_resend_all_links': ['event', 'orders'],
@@ -1317,19 +1345,14 @@ class MailSettingsForm(SettingsForm):
     }
 
     def _set_field_placeholders(self, fn, base_parameters):
-        phs = [
-            '{%s}' % p
-            for p in sorted(get_available_placeholders(self.event, base_parameters).keys())
-        ]
-        ht = _('Available placeholders: {list}').format(
-            list=', '.join(phs)
-        )
+        placeholders = get_available_placeholders(self.event, base_parameters)
+        ht = format_placeholders_help_text(placeholders, self.event)
         if self.fields[fn].help_text:
             self.fields[fn].help_text += ' ' + str(ht)
         else:
             self.fields[fn].help_text = ht
         self.fields[fn].validators.append(
-            PlaceholderValidator(phs)
+            PlaceholderValidator(['{%s}' % p for p in placeholders.keys()])
         )
 
     def __init__(self, *args, **kwargs):
@@ -1428,9 +1451,20 @@ class CountriesAndEU(CachedCountries):
     cache_subkey = 'with_any_or_eu'
 
 
+class CountriesAndEUAndStates(CountriesAndEU):
+    def __iter__(self):
+        for country_code, country_name in super().__iter__():
+            yield country_code, country_name
+            if country_code in COUNTRIES_WITH_STATE_IN_ADDRESS:
+                types, form = COUNTRIES_WITH_STATE_IN_ADDRESS[country_code]
+                yield from sorted(((state.code, country_name + " - " + state.name)
+                                   for state in pycountry.subdivisions.get(country_code=country_code)
+                                   if state.type in types), key=lambda s: s[1])
+
+
 class TaxRuleLineForm(I18nForm):
     country = LazyTypedChoiceField(
-        choices=CountriesAndEU(),
+        choices=CountriesAndEUAndStates(),
         required=False
     )
     address_type = forms.ChoiceField(

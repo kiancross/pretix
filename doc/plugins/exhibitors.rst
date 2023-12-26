@@ -35,7 +35,7 @@ contact_name                          string                     Contact person 
 contact_name_parts                    object of strings          Decomposition of contact name (i.e. given name, family name)
 contact_email                         string                     Contact person email address (or ``null``)
 booth                                 string                     Booth number (or ``null``). Maximum 100 characters.
-locale                                string                     Locale for communication with the exhibitor (or ``null``).
+locale                                string                     Locale for communication with the exhibitor.
 access_code                           string                     Access code for the exhibitor to access their data or use the lead scanning app (read-only).
 allow_lead_scanning                   boolean                    Enables lead scanning app
 allow_lead_access                     boolean                    Enables access to data gathered by the lead scanning app
@@ -230,7 +230,8 @@ Endpoints
 .. http:get:: /api/v1/organizers/(organizer)/events/(event)/exhibitors/(id)/vouchers/
 
    Returns a list of all vouchers connected to an exhibitor. The response contains the same data as described in
-   :ref:`rest-vouchers`.
+   :ref:`rest-vouchers` as well as for each voucher an additional field ``exhibitor_comment`` that is shown to the exhibitor. It can only
+   be modified using the ``attach`` API call below.
 
    **Example request**:
 
@@ -285,7 +286,7 @@ Endpoints
 .. http:post:: /api/v1/organizers/(organizer)/events/(event)/exhibitors/(id)/vouchers/attach/
 
    Attaches an **existing** voucher to an exhibitor. You need to send either the ``id`` **or** the ``code`` field of
-   the voucher.
+   the voucher. You can call this method multiple times to update the optional ``exhibitor_comment`` field.
 
    **Example request**:
 
@@ -296,7 +297,8 @@ Endpoints
       Accept: application/json, text/javascript
 
      {
-       "id": 15
+       "id": 15,
+       "exhibitor_comment": "Free ticket"
      }
 
    **Example request**:
@@ -308,7 +310,8 @@ Endpoints
       Accept: application/json, text/javascript
 
      {
-       "code": "43K6LKM37FBVR2YG"
+       "code": "43K6LKM37FBVR2YG",
+       "exhibitor_comment": "Free ticket"
      }
 
    **Example response**:
@@ -356,7 +359,6 @@ Endpoints
         "contact_email": "johnson@as.example.org",
         "booth": "A2",
         "locale": "de",
-        "access_code": "VKHZ2FU8",
         "allow_lead_scanning": true,
         "allow_lead_access": true,
         "allow_voucher_access": true,
@@ -411,7 +413,7 @@ Endpoints
 
    .. sourcecode:: http
 
-      PATCH /api/v1/organizers/bigevents/events/sampleconf/digitalcontents/1/ HTTP/1.1
+      PATCH /api/v1/organizers/bigevents/events/sampleconf/exhibitors/1/ HTTP/1.1
       Host: pretix.eu
       Accept: application/json, text/javascript
       Content-Type: application/json
@@ -458,6 +460,36 @@ Endpoints
    :statuscode 400: The exhibitor could not be modified due to invalid submitted data.
    :statuscode 401: Authentication failure
    :statuscode 403: The requested organizer/event/exhibitor does not exist **or** you have no permission to change it.
+
+.. http:post:: /api/v1/organizers/(organizer)/events/(event)/exhibitors/(id)/send_access_code/
+
+   Sends an email to the exhibitor with their access code.
+
+   **Example request**:
+
+   .. sourcecode:: http
+
+      POST /api/v1/organizers/bigevents/events/sampleconf/exhibitors/1/send_access_code/ HTTP/1.1
+      Host: pretix.eu
+      Accept: application/json, text/javascript
+
+
+   **Example response**:
+
+   .. sourcecode:: http
+
+      HTTP/1.1 204 No Content
+      Vary: Accept
+
+   :param organizer: The ``slug`` field of the organizer to modify
+   :param event: The ``slug`` field of the event to modify
+   :param code: The ``id`` field of the exhibitor to send an email for
+   :statuscode 200: no error
+   :statuscode 400: The exhibitor does not have an email address associated
+   :statuscode 401: Authentication failure
+   :statuscode 403: The requested organizer/event does not exist **or** you have no permission to view this resource.
+   :statuscode 404: The requested exhibitor does not exist.
+   :statuscode 503: The email could not be sent.
 
 
 .. http:delete:: /api/v1/organizers/(organizer)/events/(event)/exhibitors/(id)/

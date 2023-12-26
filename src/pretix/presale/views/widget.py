@@ -63,6 +63,7 @@ from pretix.base.templatetags.rich_text import rich_text
 from pretix.helpers.daterange import daterange
 from pretix.helpers.thumb import get_thumbnail
 from pretix.multidomain.urlreverse import build_absolute_uri
+from pretix.presale.forms.organizer import meta_filtersets
 from pretix.presale.views.cart import get_or_create_cart_id
 from pretix.presale.views.event import (
     get_grouped_items, item_group_by_category,
@@ -142,7 +143,6 @@ def generate_widget_js(lang):
 
         files = [
             'vuejs/vue.js' if settings.DEBUG else 'vuejs/vue.min.js',
-            'vuejs/vue-resize.min.js',
             'pretixpresale/js/widget/docready.js',
             'pretixpresale/js/widget/floatformat.js',
             'pretixpresale/js/widget/widget.js',
@@ -275,6 +275,7 @@ class WidgetAPIProductList(EventListMixin, View):
                         'order_min': item.min_per_order,
                         'order_max': item.order_max if not item.has_variations else None,
                         'price': price_dict(item, item.display_price) if not item.has_variations else None,
+                        'suggested_price': price_dict(item, item.suggested_price) if not item.has_variations else None,
                         'min_price': item.min_price if item.has_variations else None,
                         'max_price': item.max_price if item.has_variations else None,
                         'allow_waitinglist': item.allow_waitinglist,
@@ -297,6 +298,7 @@ class WidgetAPIProductList(EventListMixin, View):
                                 'order_max': var.order_max,
                                 'description': str(rich_text(var.description, safelinks=False)) if var.description else None,
                                 'price': price_dict(item, var.display_price),
+                                'suggested_price': price_dict(item, var.suggested_price),
                                 'original_price': (
                                     (
                                         var.original_price.net
@@ -403,7 +405,7 @@ class WidgetAPIProductList(EventListMixin, View):
                 availability['reason'] = 'full'
             else:  # unknown / no product
                 availability['color'] = 'none'
-                availability['text'] = ''
+                availability['text'] = gettext('More info')
                 availability['reason'] = 'unknown'
         elif ev.presale_is_running:
             availability['color'] = 'green'
@@ -463,6 +465,9 @@ class WidgetAPIProductList(EventListMixin, View):
         o = getattr(request, 'event', request.organizer)
         list_type = self.request.GET.get("style", o.settings.event_list_type)
         data['list_type'] = list_type
+        data['meta_filter_fields'] = [
+            {**v, "key": k} for k, v in meta_filtersets(request.organizer, getattr(request, 'event', None)).items()
+        ]
 
         if hasattr(self.request, 'event') and data['list_type'] not in ("calendar", "week"):
             # only allow list-view of more than 50 subevents if ordering is by data as this can be done in the database
@@ -595,7 +600,14 @@ class WidgetAPIProductList(EventListMixin, View):
             offset = int(self.request.GET.get("offset", 0))
             limit = 50
             if hasattr(self.request, 'event'):
-                evs = filter_qs_by_attr(self.request.event.subevents_annotated(self.request.sales_channel.identifier), self.request)
+                evs = filter_qs_by_attr(
+                    self.request.event.subevents_annotated(self.request.sales_channel.identifier),
+                    self.request,
+                    match_subevents_with_conditions=(
+                        Q(Q(date_to__isnull=True) & Q(date_from__gte=now() - timedelta(hours=24)))
+                        | Q(date_to__gte=now() - timedelta(hours=24))
+                    ),
+                )
                 evs = self.request.event.subevents_sorted(evs)
                 ordering = self.request.event.settings.get('frontpage_subevent_ordering', default='date_ascending', as_type=str)
                 data['has_more_events'] = False
@@ -628,7 +640,7 @@ class WidgetAPIProductList(EventListMixin, View):
                 ]
             else:
                 data['events'] = []
-                qs = self._get_event_queryset()
+                qs = self._get_event_list_queryset()
                 for event in qs:
                     tz = ZoneInfo(event.cache.get_or_set('timezone', lambda: event.settings.timezone))
                     if event.has_subevents:
@@ -670,6 +682,8 @@ class WidgetAPIProductList(EventListMixin, View):
                 return self.response(cached_data)
 
         data = {
+            'target_url': build_absolute_uri(request.event, 'presale:event.index'),
+            'subevent': self.subevent.pk if self.subevent else None,
             'currency': request.event.currency,
             'display_net_prices': request.event.settings.display_net_prices,
             'use_native_spinners': request.event.settings.widget_use_native_spinners,

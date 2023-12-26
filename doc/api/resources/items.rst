@@ -29,6 +29,8 @@ free_price                              boolean                    If ``true``, 
                                                                    they buy the product (however, the price can't be set
                                                                    lower than the price defined by ``default_price`` or
                                                                    otherwise).
+free_price_suggestion                   money (string)             A suggested price, used as a default value if
+                                                                   ``free_price`` is set (or ``null``).
 tax_rate                                decimal (string)           The VAT rate to be applied for this item (read-only,
                                                                    set through ``tax_rule``).
 tax_rule                                integer                    The internal ID of the applied tax rule (or ``null``).
@@ -50,9 +52,12 @@ available_from                          datetime                   The first dat
                                                                    (or ``null``).
 available_until                         datetime                   The last date time at which this item can be bought
                                                                    (or ``null``).
-hidden_if_available                     integer                    The internal ID of a quota object, or ``null``. If
+hidden_if_available                     integer                    **DEPRECATED** The internal ID of a quota object, or ``null``. If
                                                                    set, this item won't be shown publicly as long as this
                                                                    quota is available.
+hidden_if_item_available                integer                    The internal ID of a different item, or ``null``. If
+                                                                   set, this item won't be shown publicly as long as this
+                                                                   other item is available.
 require_voucher                         boolean                    If ``true``, this item can only be bought using a
                                                                    voucher that is specifically assigned to this item.
 hide_without_voucher                    boolean                    If ``true``, this item is only shown during the voucher
@@ -69,6 +74,8 @@ max_per_order                           integer                    This product 
 checkin_attention                       boolean                    If ``true``, the check-in app should show a warning
                                                                    that this ticket requires special attention if such
                                                                    a product is being scanned.
+checkin_text                            string                     Text that will be shown if a ticket of this type is
+                                                                   scanned (or ``null``).
 original_price                          money (string)             An original price, shown for comparison, not used
                                                                    for price calculations (or ``null``).
 require_approval                        boolean                    If ``true``, orders with this product will need to be
@@ -123,6 +130,8 @@ variations                              list of objects            A list with o
 ├ price                                 money (string)             The price used for this variation. This is either the
                                                                    same as ``default_price`` if that value is set or equal
                                                                    to the item's ``default_price``.
+├ free_price_suggestion                 money (string)             A suggested price, used as a default value if
+                                                                   ``free_price`` is set (or ``null``).
 ├ original_price                        money (string)             An original price, shown for comparison, not used
                                                                    for price calculations (or ``null``).
 ├ active                                boolean                    If ``false``, this variation will not be sold or shown.
@@ -130,6 +139,8 @@ variations                              list of objects            A list with o
 ├ checkin_attention                     boolean                    If ``true``, the check-in app should show a warning
                                                                    that this ticket requires special attention if such
                                                                    a variation is being scanned.
+├ checkin_text                          string                     Text that will be shown if a ticket of this type is
+                                                                   scanned (or ``null``).
 ├ require_approval                      boolean                    If ``true``, orders with this variation will need to be
                                                                    approved by the event organizer before they can be
                                                                    paid.
@@ -196,6 +207,16 @@ meta_data                               object                     Values set fo
 
    The ``media_policy`` and ``media_type`` attributes have been added.
 
+.. versionchanged:: 2023.10
+
+   The ``checkin_text`` and ``variations[x].checkin_text`` attributes have been added.
+   The ``free_price_suggestion`` and ``variations[x].free_price_suggestion`` attributes have been added.
+
+.. versionchanged:: 2023.10
+
+   The ``hidden_if_item_available`` attributes has been added, the ``hidden_if_available`` attribute has been
+   deprecated.
+
 Notes
 -----
 
@@ -246,6 +267,7 @@ Endpoints
             "active": true,
             "description": null,
             "free_price": false,
+            "free_price_suggestion": null,
             "tax_rate": "0.00",
             "tax_rule": 1,
             "admission": false,
@@ -259,12 +281,14 @@ Endpoints
             "available_from": null,
             "available_until": null,
             "hidden_if_available": null,
+            "hidden_if_item_available": null,
             "require_voucher": false,
             "hide_without_voucher": false,
             "allow_cancel": true,
             "min_per_order": null,
             "max_per_order": null,
             "checkin_attention": false,
+            "checkin_text": null,
             "has_variations": false,
             "generate_tickets": null,
             "allow_waitinglist": true,
@@ -291,8 +315,10 @@ Endpoints
                  "default_price": "10.00",
                  "price": "10.00",
                  "original_price": null,
+                 "free_price_suggestion": null,
                  "active": true,
                  "checkin_attention": false,
+                 "checkin_text": null,
                  "require_approval": false,
                  "require_membership": false,
                  "require_membership_types": [],
@@ -309,8 +335,10 @@ Endpoints
                  "default_price": null,
                  "price": "23.00",
                  "original_price": null,
+                 "free_price_suggestion": null,
                  "active": true,
                  "checkin_attention": false,
+                 "checkin_text": null,
                  "require_approval": false,
                  "require_membership": false,
                  "require_membership_types": [],
@@ -377,6 +405,7 @@ Endpoints
         "active": true,
         "description": null,
         "free_price": false,
+        "free_price_suggestion": null,
         "tax_rate": "0.00",
         "tax_rule": 1,
         "admission": false,
@@ -390,6 +419,7 @@ Endpoints
         "available_from": null,
         "available_until": null,
         "hidden_if_available": null,
+        "hidden_if_item_available": null,
         "require_voucher": false,
         "hide_without_voucher": false,
         "allow_cancel": true,
@@ -399,6 +429,7 @@ Endpoints
         "min_per_order": null,
         "max_per_order": null,
         "checkin_attention": false,
+        "checkin_text": null,
         "has_variations": false,
         "require_approval": false,
         "require_bundling": false,
@@ -422,8 +453,10 @@ Endpoints
              "default_price": "10.00",
              "price": "10.00",
              "original_price": null,
+             "free_price_suggestion": null,
              "active": true,
              "checkin_attention": false,
+             "checkin_text": null,
              "require_approval": false,
              "require_membership": false,
              "require_membership_types": [],
@@ -440,8 +473,10 @@ Endpoints
              "default_price": null,
              "price": "23.00",
              "original_price": null,
+             "free_price_suggestion": null,
              "active": true,
              "checkin_attention": false,
+             "checkin_text": null,
              "require_approval": false,
              "require_membership": false,
              "require_membership_types": [],
@@ -489,6 +524,7 @@ Endpoints
         "active": true,
         "description": null,
         "free_price": false,
+        "free_price_suggestion": null,
         "tax_rate": "0.00",
         "tax_rule": 1,
         "admission": false,
@@ -502,6 +538,7 @@ Endpoints
         "available_from": null,
         "available_until": null,
         "hidden_if_available": null,
+        "hidden_if_item_available": null,
         "require_voucher": false,
         "hide_without_voucher": false,
         "allow_cancel": true,
@@ -511,6 +548,7 @@ Endpoints
         "min_per_order": null,
         "max_per_order": null,
         "checkin_attention": false,
+        "checkin_text": null,
         "require_approval": false,
         "require_bundling": false,
         "require_membership": false,
@@ -533,8 +571,10 @@ Endpoints
              "default_price": "10.00",
              "price": "10.00",
              "original_price": null,
+             "free_price_suggestion": null,
              "active": true,
              "checkin_attention": false,
+             "checkin_text": null,
              "require_approval": false,
              "require_membership": false,
              "require_membership_types": [],
@@ -551,8 +591,10 @@ Endpoints
              "default_price": null,
              "price": "23.00",
              "original_price": null,
+             "free_price_suggestion": null,
              "active": true,
              "checkin_attention": false,
+             "checkin_text": null,
              "require_approval": false,
              "require_membership": false,
              "require_membership_types": [],
@@ -588,6 +630,7 @@ Endpoints
         "active": true,
         "description": null,
         "free_price": false,
+        "free_price_suggestion": null,
         "tax_rate": "0.00",
         "tax_rule": 1,
         "admission": false,
@@ -601,6 +644,7 @@ Endpoints
         "available_from": null,
         "available_until": null,
         "hidden_if_available": null,
+        "hidden_if_item_available": null,
         "require_voucher": false,
         "hide_without_voucher": false,
         "allow_cancel": true,
@@ -610,6 +654,7 @@ Endpoints
         "allow_waitinglist": true,
         "show_quota_left": null,
         "checkin_attention": false,
+        "checkin_text": null,
         "has_variations": true,
         "require_approval": false,
         "require_bundling": false,
@@ -633,8 +678,10 @@ Endpoints
              "default_price": "10.00",
              "price": "10.00",
              "original_price": null,
+             "free_price_suggestion": null,
              "active": true,
              "checkin_attention": false,
+             "checkin_text": null,
              "require_approval": false,
              "require_membership": false,
              "require_membership_types": [],
@@ -651,8 +698,10 @@ Endpoints
              "default_price": null,
              "price": "23.00",
              "original_price": null,
+             "free_price_suggestion": null,
              "active": true,
              "checkin_attention": false,
+             "checkin_text": null,
              "require_approval": false,
              "require_membership": false,
              "require_membership_types": [],
@@ -719,6 +768,7 @@ Endpoints
         "active": true,
         "description": null,
         "free_price": false,
+        "free_price_suggestion": null,
         "tax_rate": "0.00",
         "tax_rule": 1,
         "admission": false,
@@ -732,6 +782,7 @@ Endpoints
         "available_from": null,
         "available_until": null,
         "hidden_if_available": null,
+        "hidden_if_item_available": null,
         "require_voucher": false,
         "hide_without_voucher": false,
         "generate_tickets": null,
@@ -741,6 +792,7 @@ Endpoints
         "min_per_order": null,
         "max_per_order": null,
         "checkin_attention": false,
+        "checkin_text": null,
         "has_variations": true,
         "require_approval": false,
         "require_bundling": false,
@@ -764,8 +816,10 @@ Endpoints
              "default_price": "10.00",
              "price": "10.00",
              "original_price": null,
+             "free_price_suggestion": null,
              "active": true,
              "checkin_attention": false,
+             "checkin_text": null,
              "require_approval": false,
              "require_membership": false,
              "require_membership_types": [],
@@ -782,8 +836,10 @@ Endpoints
              "default_price": null,
              "price": "23.00",
              "original_price": null,
+             "free_price_suggestion": null,
              "active": true,
              "checkin_attention": false,
+             "checkin_text": null,
              "require_approval": false,
              "require_membership": false,
              "require_membership_types": [],

@@ -45,12 +45,12 @@ from urllib.parse import quote, urlencode
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files import File
 from django.db import transaction
 from django.db.models import (
     Count, Exists, F, IntegerField, OuterRef, Prefetch, ProtectedError, Q,
-    Subquery, Sum,
+    QuerySet, Subquery, Sum,
 )
 from django.forms import formset_factory
 from django.http import (
@@ -74,6 +74,7 @@ from i18nfield.strings import LazyI18nString
 from pretix.base.channels import get_all_sales_channels
 from pretix.base.decimal import round_decimal
 from pretix.base.email import get_email_context
+from pretix.base.exporter import MultiSheetListExporter
 from pretix.base.i18n import language
 from pretix.base.models import (
     CachedCombinedTicket, CachedFile, CachedTicket, Checkin, Invoice,
@@ -111,16 +112,16 @@ from pretix.base.signals import (
 from pretix.base.templatetags.money import money_filter
 from pretix.base.templatetags.rich_text import markdown_compile_email
 from pretix.base.views.mixins import OrderQuestionsViewMixin
-from pretix.base.views.tasks import AsyncAction
+from pretix.base.views.tasks import AsyncAction, AsyncFormView
 from pretix.control.forms.exports import ScheduledEventExportForm
 from pretix.control.forms.filter import (
     EventOrderExpertFilterForm, EventOrderFilterForm, OverviewFilterForm,
     RefundFilterForm,
 )
 from pretix.control.forms.orders import (
-    CancelForm, CommentForm, ConfirmPaymentForm, EventCancelForm, ExporterForm,
-    ExtendForm, MarkPaidForm, OrderContactForm, OrderFeeChangeForm,
-    OrderLocaleForm, OrderMailForm, OrderPositionAddForm,
+    CancelForm, CommentForm, ConfirmPaymentForm, DenyForm, EventCancelForm,
+    ExporterForm, ExtendForm, MarkPaidForm, OrderContactForm,
+    OrderFeeChangeForm, OrderLocaleForm, OrderMailForm, OrderPositionAddForm,
     OrderPositionAddFormset, OrderPositionChangeForm, OrderPositionMailForm,
     OrderRefundForm, OtherOperationsForm, ReactivateOrderForm,
 )
@@ -137,10 +138,17 @@ logger = logging.getLogger(__name__)
 
 
 class OrderSearchMixin:
+
+    @cached_property
+    def request_data(self):
+        if self.request.method == "POST":
+            return self.request.POST
+        return self.request.GET
+
     def get_forms(self):
         f = [
             EventOrderExpertFilterForm(
-                data=self.request.GET,
+                data=self.request_data,
                 event=self.request.event,
                 prefix='expert',
             )
@@ -158,6 +166,203 @@ class OrderSearch(OrderSearchMixin, EventPermissionRequiredMixin, TemplateView):
         ctx = super().get_context_data(**kwargs)
         ctx['forms'] = self.get_forms()
         return ctx
+
+
+class BaseOrderBulkActionView(OrderSearchMixin, EventPermissionRequiredMixin, AsyncFormView):
+    template_name = 'pretixcontrol/orders/bulk_action.html'
+    permission = 'can_change_orders'
+    form_class = forms.Form
+
+    def get_queryset(self):
+        qs = Order.objects.filter(
+            event=self.request.event
+        ).select_related('invoice_address')
+
+        if self.filter_form.is_valid():
+            qs = self.filter_form.filter_qs(qs)
+
+        for f in self.get_forms():
+            if any(k.startswith(f.prefix) for k in self.request.POST.keys()):
+                if not f.is_valid():
+                    raise PermissionDenied("Invalid query")  # better safe than sorry with this one
+                qs = f.filter_qs(qs)
+
+        if 'order' in self.request_data and '__ALL' not in self.request_data:
+            qs = qs.filter(
+                id__in=self.request_data.getlist('order')
+            )
+        elif '__ALL' not in self.request_data:
+            raise PermissionDenied("Invalid query")  # better safe than sorry with this one
+
+        return qs
+
+    @cached_property
+    def filter_form(self):
+        return EventOrderFilterForm(data=self.request.POST, event=self.request.event)
+
+    @property
+    def label(self) -> str:
+        raise NotImplementedError()
+
+    def allowed_for(self, queryset: QuerySet) -> QuerySet:
+        raise NotImplementedError()
+
+    def execute_single(self, instance, form: forms.Form):
+        raise NotImplementedError()
+
+    def execute_bulk(self, queryset: QuerySet, form: forms.Form):
+        qs = self.allowed_for(self.allowed_for(self.get_queryset()))
+        total = qs.count()
+        orders_with_successful_action = 0
+        for i, o in enumerate(qs):
+            res = self.execute_single(o, form)
+            if res:
+                orders_with_successful_action += 1
+            if i % 100 == 0:
+                self.async_set_progress(i / total * 100)
+        return orders_with_successful_action, total
+
+    def get_error_url(self):
+        return self.get_success_url(None)
+
+    def get(self, request, *args, **kwargs):
+        if 'async_id' in request.GET and settings.HAS_CELERY:
+            return self.get_result(request)
+        return render(request, self.template_name, self.get_context_data())
+
+    def get_success_url(self, value):
+        return reverse('control:event.orders', kwargs={
+            'event': self.request.event.slug,
+            'organizer': self.request.event.organizer.slug,
+        })
+
+    def get_success_message(self, value):
+        return _("Successfully executed the action \"{label}\" on {success} of {total} orders.").format(success=value[0], label=self.label, total=value[1])
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['total'] = self.get_queryset().count()
+        ctx['allowed'] = self.allowed_for(self.get_queryset())
+        ctx['label'] = self.label
+        ctx['form'] = self.get_form()
+        return ctx
+
+    def get_form_kwargs(self):
+        kwargs = {
+            "initial": self.get_initial(),
+            "prefix": self.get_prefix(),
+        }
+
+        if self.request.method in ("POST", "PUT") and self.request.POST.get("operation") == "confirm":
+            kwargs.update(
+                {
+                    "data": self.request.POST,
+                    "files": self.request.FILES,
+                }
+            )
+        return kwargs
+
+    def post(self, request, *args, **kwargs):
+        """
+        Handle POST requests: instantiate a form instance with the passed
+        POST variables and then check if it's valid.
+        """
+        form = self.get_form()
+        if self.request.POST.get("operation") == "confirm" and form.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
+    def get_prefix(self):
+        return "bulkactionform"
+
+    @transaction.atomic()
+    def async_form_valid(self, task, form):
+        return self.execute_bulk(self.allowed_for(self.get_queryset()), form)
+
+
+class OrderApproveBulkActionView(BaseOrderBulkActionView):
+    label = _("Approve")
+
+    def allowed_for(self, queryset):
+        return queryset.filter(
+            status=Order.STATUS_PENDING,
+            require_approval=True,
+        )
+
+    def execute_single(self, instance, form: forms.Form):
+        approve_order(instance, user=self.request.user)
+        return True
+
+
+class OrderDenyBulkActionView(BaseOrderBulkActionView):
+    label = _("Deny")
+    form_class = DenyForm
+
+    def allowed_for(self, queryset):
+        return queryset.filter(
+            status=Order.STATUS_PENDING,
+            require_approval=True,
+        )
+
+    def execute_single(self, instance, form: forms.Form):
+        deny_order(instance, user=self.request.user,
+                   comment=form.cleaned_data.get('comment') or None,
+                   send_mail=form.cleaned_data['send_email'])
+        return True
+
+
+class OrderExpireBulkActionView(BaseOrderBulkActionView):
+    label = _("Mark as expired if overdue")
+
+    def allowed_for(self, queryset):
+        return queryset.filter(
+            status=Order.STATUS_PENDING,
+            require_approval=False,
+            expires__lt=now(),
+        )
+
+    def execute_single(self, instance, form: forms.Form):
+        mark_order_expired(instance, user=self.request.user)
+        return True
+
+
+class OrderOverpaidRefundBulkActionView(BaseOrderBulkActionView):
+    label = _("Refund overpaid amount")
+
+    def allowed_for(self, queryset):
+        return Order.annotate_overpayments(queryset).filter(is_overpaid=True)
+
+    def execute_single(self, instance: Order, form: forms.Form):
+        if instance.pending_sum < 0:
+            try:
+                proposals = instance.propose_auto_refunds(instance.pending_sum * -1)
+                for payment, amount in proposals.items():
+                    refund = OrderRefund.objects.create(
+                        order=instance,
+                        payment=payment,
+                        source=OrderRefund.REFUND_SOURCE_ADMIN,
+                        state=OrderRefund.REFUND_STATE_CREATED,
+                        amount=amount,
+                        comment=_("Refund for overpayment"),
+                        provider=payment.provider
+                    )
+                    payment.payment_provider.execute_refund(refund)
+                    return True
+            except (ValueError, PaymentException):
+                return False
+
+
+class OrderDeleteBulkActionView(BaseOrderBulkActionView):
+    label = _("Delete")
+
+    def allowed_for(self, queryset):
+        return queryset.filter(
+            testmode=True,
+        )
+
+    def execute_single(self, instance, form: forms.Form):
+        instance.gracefully_delete(user=self.request.user)
 
 
 class OrderList(OrderSearchMixin, EventPermissionRequiredMixin, PaginationMixin, ListView):
@@ -183,6 +388,7 @@ class OrderList(OrderSearchMixin, EventPermissionRequiredMixin, PaginationMixin,
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['filter_form'] = self.filter_form
+        ctx['filter_forms'] = self.get_forms()
 
         ctx['filter_strings'] = []
         for f in self.get_forms():
@@ -272,12 +478,9 @@ class OrderView(EventPermissionRequiredMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         ctx['can_generate_invoice'] = invoice_qualified(self.order) and (
             self.request.event.settings.invoice_generate in ('admin', 'user', 'paid', 'True')
-        ) and (
+        ) and self.order.status in (Order.STATUS_PAID, Order.STATUS_PENDING) and (
             not self.order.invoices.exists()
-            or (
-                self.order.status in (Order.STATUS_PAID, Order.STATUS_PENDING)
-                and self.order.invoices.filter(is_cancellation=True).count() >= self.order.invoices.filter(is_cancellation=False).count()
-            )
+            or self.order.invoices.filter(is_cancellation=True).count() >= self.order.invoices.filter(is_cancellation=False).count()
         )
         return ctx
 
@@ -310,7 +513,8 @@ class OrderDetail(OrderView):
         ctx['comment_form'] = CommentForm(initial={
             'comment': self.order.comment,
             'custom_followup_at': self.order.custom_followup_at,
-            'checkin_attention': self.order.checkin_attention
+            'checkin_attention': self.order.checkin_attention,
+            'checkin_text': self.order.checkin_text,
         })
         ctx['display_locale'] = dict(settings.LANGUAGES)[self.object.locale or self.request.event.settings.locale]
 
@@ -544,7 +748,13 @@ class OrderComment(OrderView):
                 self.order.log_action('pretix.event.order.checkin_attention', user=self.request.user, data={
                     'new_value': form.cleaned_data.get('checkin_attention')
                 })
-            self.order.save(update_fields=['checkin_attention', 'comment', 'custom_followup_at'])
+
+            if form.cleaned_data.get('checkin_text') != self.order.checkin_text:
+                self.order.checkin_text = form.cleaned_data.get('checkin_text')
+                self.order.log_action('pretix.event.order.checkin_text', user=self.request.user, data={
+                    'new_value': form.cleaned_data.get('checkin_text')
+                })
+            self.order.save(update_fields=['checkin_attention', 'checkin_text', 'comment', 'custom_followup_at'])
             self.order.refresh_from_db()
             messages.success(self.request, _('The comment has been updated.'))
         else:
@@ -607,21 +817,26 @@ class OrderDelete(OrderView):
 class OrderDeny(OrderView):
     permission = 'can_change_orders'
 
-    def post(self, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         if self.order.require_approval:
-            try:
-                deny_order(self.order, user=self.request.user,
-                           comment=self.request.POST.get('comment'),
-                           send_mail=self.request.POST.get('send_email') == 'on')
-            except OrderError as e:
-                messages.error(self.request, str(e))
+            form = DenyForm(self.request.POST if self.request.method == "POST" else None)
+            if form.is_valid():
+                try:
+                    deny_order(self.order, user=self.request.user,
+                               comment=self.request.POST.get('comment'),
+                               send_mail=self.request.POST.get('send_email') == 'on')
+                except OrderError as e:
+                    messages.error(self.request, str(e))
+                else:
+                    messages.success(self.request, _('The order has been denied and is therefore now canceled.'))
             else:
-                messages.success(self.request, _('The order has been denied and is therefore now canceled.'))
+                return self.get(request, *args, **kwargs)
         return redirect(self.get_order_url())
 
     def get(self, *args, **kwargs):
         return render(self.request, 'pretixcontrol/order/deny.html', {
             'order': self.order,
+            'form': DenyForm(self.request.POST if self.request.method == "POST" else None)
         })
 
 
@@ -970,6 +1185,9 @@ class OrderRefundView(OrderView):
                         messages.error(self.request, _('You entered an order that could not be found.'))
                         is_valid = False
                     else:
+                        if order.event.currency != self.request.event.currency:
+                            messages.error(self.request, _('You entered an order in an event with a different currency.'))
+                            is_valid = False
                         refunds.append(OrderRefund(
                             order=self.order,
                             payment=None,
@@ -1298,7 +1516,7 @@ class OrderTransition(OrderView):
                                 'organizer': self.request.event.organizer.slug,
                                 'code': self.order.code
                             }) + '?start-action=do_nothing&start-mode=partial&start-partial_amount={}&giftcard={}&comment={}'.format(
-                                round_decimal(self.order.pending_sum * -1),
+                                round_decimal(self.order.pending_sum * -1, self.order.event.currency),
                                 'true' if self.req and self.req.refund_as_giftcard else 'false',
                                 quote(gettext('Order canceled'))
                             ))
@@ -1438,7 +1656,7 @@ class OrderInvoiceReissue(OrderView):
                 messages.error(self.request, _('The invoice has been cleaned of personal data.'))
             else:
                 c = generate_cancellation(inv)
-                if self.order.status != Order.STATUS_CANCELED:
+                if self.order.status not in (Order.STATUS_CANCELED, Order.STATUS_EXPIRED):
                     inv = generate_invoice(self.order)
                 else:
                     inv = c
@@ -1720,7 +1938,7 @@ class OrderChange(OrderView):
                     ocm.cancel_fee(f)
                     continue
 
-                if f.form.cleaned_data['value'] != f.value:
+                if f.form.cleaned_data['value'] is not None and f.form.cleaned_data['value'] != f.value:
                     ocm.change_fee(f, f.form.cleaned_data['value'])
 
                 if f.form.cleaned_data['tax_rule'] and f.form.cleaned_data['tax_rule'] != f.tax_rule:
@@ -2305,6 +2523,7 @@ class ExportMixin:
                 prefix=ex.identifier,
                 initial=initial
             )
+            ex.multisheet_warning = isinstance(ex, MultiSheetListExporter) and len(ex.sheets) > 1
             ex.form.fields = ex.export_form_fields
             return ex
 
@@ -2332,7 +2551,7 @@ class ExportMixin:
 
 class ExportDoView(EventPermissionRequiredMixin, ExportMixin, AsyncAction, TemplateView):
     permission = 'can_view_orders'
-    known_errortypes = ['ExportError']
+    known_errortypes = ['ExportError', 'ExportEmptyError']
     task = export
     template_name = 'pretixcontrol/orders/export_form.html'
 

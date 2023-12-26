@@ -631,6 +631,30 @@ class ItemDisplayTest(EventTestMixin, SoupTest):
         self.assertNotIn("SOLD OUT", doc.select("section:nth-of-type(1)")[0].text)
         self.assertIn("Late-bird", doc.select("section:nth-of-type(1)")[0].text)
 
+    def test_hidden_if_item_available(self):
+        with scopes_disabled():
+            q = Quota.objects.create(event=self.event, name='Early-bird', size=10)
+            q2 = Quota.objects.create(event=self.event, name='Late-bird', size=10)
+            item = Item.objects.create(event=self.event, name='Early-bird ticket', default_price=12)
+            item2 = Item.objects.create(event=self.event, name='Late-bird ticket', default_price=12,
+                                        hidden_if_item_available=item)
+            q.items.add(item)
+            q2.items.add(item2)
+        self.event.settings.hide_sold_out = True
+
+        doc = self.get_doc('/%s/%s/' % (self.orga.slug, self.event.slug))
+        self.assertIn("Early-bird", doc.select("section:nth-of-type(1)")[0].text)
+        self.assertNotIn("SOLD OUT", doc.select("section:nth-of-type(1)")[0].text)
+        self.assertNotIn("Late-bird", doc.select("section:nth-of-type(1)")[0].text)
+
+        q.size = 0
+        q.save()
+
+        doc = self.get_doc('/%s/%s/' % (self.orga.slug, self.event.slug))
+        self.assertNotIn("Early-bird", doc.select("section:nth-of-type(1)")[0].text)
+        self.assertNotIn("SOLD OUT", doc.select("section:nth-of-type(1)")[0].text)
+        self.assertIn("Late-bird", doc.select("section:nth-of-type(1)")[0].text)
+
     def test_bundle_sold_out(self):
         with scopes_disabled():
             q = Quota.objects.create(event=self.event, name='Quota', size=2)
@@ -1418,7 +1442,10 @@ class EventIcalDownloadTest(EventTestMixin, SoupTest):
                       (self.event.settings.timezone,
                        self.event.date_from.astimezone(ZoneInfo(self.event.settings.timezone)).strftime(fmt)),
                       ical, 'incorrect start time')
-        self.assertNotIn('DTEND', ical, 'unexpected end time attribute')
+        self.assertIn('DTEND;TZID=%s:%s' %
+                      (self.event.settings.timezone,
+                       (self.event.date_from.astimezone(ZoneInfo(self.event.settings.timezone)) + datetime.timedelta(hours=1)).strftime(fmt)),
+                      ical, 'incorrect end time')
 
     def test_no_date_to_and_time(self):
         self.event.settings.show_date_to = False
@@ -1426,7 +1453,7 @@ class EventIcalDownloadTest(EventTestMixin, SoupTest):
         self.event.save()
         ical = self.client.get('/%s/%s/ical/' % (self.orga.slug, self.event.slug)).content.decode()
         self.assertIn('DTSTART;VALUE=DATE:%s' % self.event.date_from.strftime('%Y%m%d'), ical, 'incorrect start date')
-        self.assertNotIn('DTEND', ical, 'unexpected end time attribute')
+        self.assertIn('DTEND;VALUE=DATE:%s' % (self.event.date_from + datetime.timedelta(days=1)).strftime('%Y%m%d'), ical, 'incorrect start date')
 
     def test_local_date_diff_from_utc(self):
         self.event.date_from = datetime.datetime(2013, 12, 26, 21, 57, 58, tzinfo=datetime.timezone.utc)

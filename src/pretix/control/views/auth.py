@@ -87,8 +87,8 @@ def process_login(request, user, keep_logged_in):
         auth_login(request, user)
         request.session['pretix_auth_login_time'] = int(time.time())
         if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts=None):
-            return redirect(next_url)
-        return redirect(reverse('control:index'))
+            return redirect_to_url(next_url)
+        return redirect('control:index')
 
 
 def login(request):
@@ -149,7 +149,10 @@ def register(request):
         raise PermissionDenied('Registration is disabled')
     ctx = {}
     if request.user.is_authenticated:
-        return redirect(request.GET.get("next", 'control:index'))
+        next_url = request.GET.get("next") or reverse("control:index")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts=None):
+            return redirect_to_url(next_url)
+        return redirect("control:index")
     if request.method == 'POST':
         form = RegistrationForm(data=request.POST)
         if form.is_valid():
@@ -256,7 +259,10 @@ class Forgot(TemplateView):
 
     def get(self, request, *args, **kwargs):
         if request.user.is_authenticated:
-            return redirect(request.GET.get("next", 'control:index'))
+            next_url = request.GET.get("next") or reverse("control:index")
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts=None):
+                return redirect_to_url(next_url)
+            return redirect("control:index")
         return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
@@ -266,7 +272,7 @@ class Forgot(TemplateView):
             has_redis = settings.HAS_REDIS
 
             try:
-                user = User.objects.get(email__iexact=email)
+                user = User.objects.get(is_active=True, auth_backend='native', email__iexact=email)
 
                 if has_redis:
                     from django_redis import get_redis_connection
@@ -322,15 +328,19 @@ class Recover(TemplateView):
     }
 
     def dispatch(self, request, *args, **kwargs):
-        if not settings.PRETIX_PASSWORD_RESET or 'native' not in get_auth_backends():
+        # settings.PRETIX_PASSWORD_RESET is not checked here to allow admin-sent recovery links
+        if 'native' not in get_auth_backends():
             raise PermissionDenied('Registration is disabled')
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         if request.user.is_authenticated:
-            return redirect(request.GET.get("next", 'control:index'))
+            next_url = request.GET.get("next") or reverse("control:index")
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts=None):
+                return redirect_to_url(next_url)
+            return redirect("control:index")
         try:
-            user = User.objects.get(id=self.request.GET.get('id'), auth_backend='native')
+            user = User.objects.get(id=self.request.GET.get('id'), is_active=True, auth_backend='native')
         except User.DoesNotExist:
             return self.invalid('unknownuser')
         if not default_token_generator.check_token(user, self.request.GET.get('token')):
@@ -350,6 +360,7 @@ class Recover(TemplateView):
             if not default_token_generator.check_token(user, self.request.GET.get('token')):
                 return self.invalid('invalid')
             user.set_password(self.form.cleaned_data['password'])
+            user.needs_password_change = False
             user.save()
             messages.success(request, _('You can now login using your new password.'))
             user.log_action('pretix.control.auth.user.forgot_password.recovered')
@@ -451,7 +462,7 @@ class Login2FAView(TemplateView):
             del request.session['pretix_auth_2fa_time']
             if "next" in request.GET and url_has_allowed_host_and_scheme(request.GET.get("next"), allowed_hosts=None):
                 return redirect_to_url(request.GET.get("next"))
-            return redirect(reverse('control:index'))
+            return redirect('control:index')
         else:
             messages.error(request, _('Invalid code, please try again.'))
             return redirect('control:auth.login.2fa')

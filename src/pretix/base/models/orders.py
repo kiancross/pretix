@@ -37,10 +37,13 @@ import copy
 import hashlib
 import json
 import logging
+import operator
 import string
 from collections import Counter
 from datetime import datetime, time, timedelta
 from decimal import Decimal
+from functools import reduce
+from time import sleep
 from typing import Any, Dict, List, Union
 from zoneinfo import ZoneInfo
 
@@ -75,7 +78,6 @@ from pretix.base.email import get_email_context
 from pretix.base.i18n import language
 from pretix.base.models import Customer, User
 from pretix.base.reldate import RelativeDateWrapper
-from pretix.base.services.locking import LOCK_TIMEOUT, NoLockManager
 from pretix.base.settings import PERSON_NAME_SCHEMES
 from pretix.base.signals import order_gracefully_delete
 
@@ -83,6 +85,7 @@ from ...helpers import OF_SELF
 from ...helpers.countries import CachedCountries, FastCountryField
 from ...helpers.format import format_map
 from ...helpers.names import build_name
+from ...testutils.middleware import debugflags_var
 from ._transactions import (
     _fail, _transactions_mark_order_clean, _transactions_mark_order_dirty,
 )
@@ -241,6 +244,11 @@ class Order(LockModel, LoggedModel):
                     'special attention. This will not show any details or custom message, so you need to brief your '
                     'check-in staff how to handle these cases.')
     )
+    checkin_text = models.TextField(
+        verbose_name=_('Check-in text'),
+        null=True, blank=True,
+        help_text=_('This text will be shown by the check-in app if a ticket of this order is scanned.')
+    )
     expiry_reminder_sent = models.BooleanField(
         default=False
     )
@@ -262,6 +270,10 @@ class Order(LockModel, LoggedModel):
     email_known_to_work = models.BooleanField(
         default=False,
         verbose_name=_('E-mail address verified')
+    )
+    invoice_dirty = models.BooleanField(
+        # Invoice needs to be re-issued when the order is paid again
+        default=False,
     )
 
     objects = ScopedManager(organizer='event__organizer')
@@ -321,6 +333,18 @@ class Order(LockModel, LoggedModel):
 
     def email_confirm_hash(self):
         return hashlib.sha256(settings.SECRET_KEY.encode() + self.secret.encode()).hexdigest()[:9]
+
+    def get_extended_status_display(self):
+        # Changes in this method should to be replicated in pretixcontrol/orders/fragment_order_status.html
+        # and pretixpresale/event/fragment_order_status.html
+        if self.status == Order.STATUS_PENDING:
+            if self.require_approval:
+                return _("approval pending")
+            elif self.valid_if_pending:
+                return pgettext_lazy("order state", "pending (confirmed)")
+        elif self.status == Order.STATUS_PAID and self.count_positions == 0:
+            return _("canceled (paid fee)")
+        return self.get_status_display()
 
     @property
     def fees(self):
@@ -630,7 +654,7 @@ class Order(LockModel, LoggedModel):
         positions = list(
             self.positions.all().annotate(
                 has_variations=Exists(ItemVariation.objects.filter(item_id=OuterRef('item_id'))),
-                has_checkin=Exists(Checkin.objects.filter(position_id=OuterRef('pk')))
+                has_checkin=Exists(Checkin.objects.filter(position_id=OuterRef('pk'), list__consider_tickets_used=True))
             ).select_related('item').prefetch_related('issued_gift_cards')
         )
         if self.event.settings.change_allow_user_if_checked_in:
@@ -662,7 +686,7 @@ class Order(LockModel, LoggedModel):
             return False
         positions = list(
             self.positions.all().annotate(
-                has_checkin=Exists(Checkin.objects.filter(position_id=OuterRef('pk')))
+                has_checkin=Exists(Checkin.objects.filter(position_id=OuterRef('pk'), list__consider_tickets_used=True))
             ).select_related('item').prefetch_related('issued_gift_cards')
         )
         cancelable = all([op.item.allow_cancel and not op.has_checkin and not op.blocked for op in positions])
@@ -817,7 +841,7 @@ class Order(LockModel, LoggedModel):
 
         positions = list(
             self.positions.all().annotate(
-                has_checkin=Exists(Checkin.objects.filter(position_id=OuterRef('pk')))
+                has_checkin=Exists(Checkin.objects.filter(position_id=OuterRef('pk'), list__consider_tickets_used=True))
             ).select_related('item').prefetch_related('item__questions')
         )
         if not self.event.settings.allow_modifications_after_checkin:
@@ -825,7 +849,7 @@ class Order(LockModel, LoggedModel):
                 if cp.has_checkin:
                     return False
 
-        if self.event.settings.get('invoice_address_asked', as_type=bool):
+        if self.event.settings.get('invoice_address_asked', as_type=bool) or self.event.settings.get('invoice_name_required', as_type=bool):
             return True
         ask_names = self.event.settings.get('attendee_names_asked', as_type=bool)
         for cp in positions:
@@ -923,7 +947,7 @@ class Order(LockModel, LoggedModel):
         else:
             return expires
 
-    def _can_be_paid(self, count_waitinglist=True, ignore_date=False, force=False) -> Union[bool, str]:
+    def _can_be_paid(self, count_waitinglist=True, ignore_date=False, force=False, lock=False) -> Union[bool, str]:
         error_messages = {
             'late_lastdate': _("The payment can not be accepted as the last date of payments configured in the "
                                "payment settings is over."),
@@ -944,10 +968,11 @@ class Order(LockModel, LoggedModel):
         if not self.event.settings.get('payment_term_accept_late') and not ignore_date and not force:
             return error_messages['late']
 
-        return self._is_still_available(count_waitinglist=count_waitinglist, force=force)
+        return self._is_still_available(count_waitinglist=count_waitinglist, force=force, lock=lock)
 
-    def _is_still_available(self, now_dt: datetime=None, count_waitinglist=True, force=False,
+    def _is_still_available(self, now_dt: datetime=None, count_waitinglist=True, lock=False, force=False,
                             check_voucher_usage=False, check_memberships=False) -> Union[bool, str]:
+        from pretix.base.services.locking import lock_objects
         from pretix.base.services.memberships import (
             validate_memberships_in_order,
         )
@@ -966,9 +991,20 @@ class Order(LockModel, LoggedModel):
         try:
             if check_memberships:
                 try:
-                    validate_memberships_in_order(self.customer, positions, self.event, lock=False, testmode=self.testmode)
+                    validate_memberships_in_order(self.customer, positions, self.event, lock=lock, testmode=self.testmode)
                 except ValidationError as e:
                     raise Quota.QuotaExceededException(e.message)
+
+            for cp in positions:
+                cp._cached_quotas = list(cp.quotas) if not force else []
+
+            if lock:
+                lock_objects(
+                    [q for q in reduce(operator.or_, (set(cp._cached_quotas) for cp in positions), set()) if q.size is not None] +
+                    [op.voucher for op in positions if op.voucher and not force] +
+                    [op.seat for op in positions if op.seat],
+                    shared_lock_objects=[self.event]
+                )
 
             for i, op in enumerate(positions):
                 if op.seat:
@@ -994,7 +1030,7 @@ class Order(LockModel, LoggedModel):
                             voucher=op.voucher.code
                         ))
 
-                quotas = list(op.quotas)
+                quotas = op._cached_quotas
                 if len(quotas) == 0:
                     raise Quota.QuotaExceededException(error_messages['unavailable'].format(
                         item=str(op.item) + (' - ' + str(op.variation) if op.variation else '')
@@ -1016,6 +1052,9 @@ class Order(LockModel, LoggedModel):
                             ))
         except Quota.QuotaExceededException as e:
             return str(e)
+
+        if 'sleep-after-quota-check' in debugflags_var.get():
+            sleep(2)
         return True
 
     def send_mail(self, subject: Union[str, LazyI18nString], template: Union[str, LazyI18nString],
@@ -1246,13 +1285,28 @@ class QuestionAnswer(models.Model):
 
     @property
     def is_image(self):
-        return any(self.file.name.lower().endswith(e) for e in ('.jpg', '.png', '.gif', '.tiff', '.bmp', '.jpeg'))
+        return any(self.file.name.lower().endswith(e) for e in settings.FILE_UPLOAD_EXTENSIONS_QUESTION_IMAGE)
 
     @property
     def file_name(self):
         return self.file.name.split('.', 1)[-1]
 
     def __str__(self):
+        return self.to_string(use_cached=True)
+
+    def to_string_i18n(self):
+        return self.to_string(use_cached=False)
+
+    def to_string(self, use_cached=True):
+        """
+        Render this answer as a string.
+
+        :param use_cached: If ``True`` (default), choice and multiple choice questions will show their cached
+                           value, i.e. the value of the selected options at the time of saving and in the language
+                           the answer was saved in. If ``False``, the values will instead be loaded from the
+                           database, yielding current and translated values of the options. However, additional database
+                           queries might be required.
+        """
         if self.question.type == Question.TYPE_BOOLEAN and self.answer == "True":
             return str(_("Yes"))
         elif self.question.type == Question.TYPE_BOOLEAN and self.answer == "False":
@@ -1287,6 +1341,8 @@ class QuestionAnswer(models.Model):
                 return PhoneNumber.from_string(self.answer).as_international
             except NumberParseException:
                 return self.answer
+        elif self.question.type in (Question.TYPE_CHOICE, Question.TYPE_CHOICE_MULTIPLE) and self.answer and not use_cached:
+            return ", ".join(str(o.answer) for o in self.options.all())
         else:
             return self.answer
 
@@ -1647,9 +1703,10 @@ class OrderPayment(models.Model):
         return self.order.event.get_payment_providers(cached=True).get(self.provider)
 
     @transaction.atomic()
-    def _mark_paid_inner(self, force, count_waitinglist, user, auth, ignore_date=False, overpaid=False):
+    def _mark_paid_inner(self, force, count_waitinglist, user, auth, ignore_date=False, overpaid=False, lock=False):
         from pretix.base.signals import order_paid
-        can_be_paid = self.order._can_be_paid(count_waitinglist=count_waitinglist, ignore_date=ignore_date, force=force)
+        can_be_paid = self.order._can_be_paid(count_waitinglist=count_waitinglist, ignore_date=ignore_date, force=force,
+                                              lock=lock)
         if can_be_paid is not True:
             self.order.log_action('pretix.event.order.quotaexceeded', {
                 'message': can_be_paid
@@ -1780,25 +1837,24 @@ class OrderPayment(models.Model):
             ))
             return
 
-        self._mark_order_paid(count_waitinglist, send_mail, force, user, auth, mail_text, ignore_date, lock, payment_sum - refund_sum,
-                              generate_invoice)
+        with transaction.atomic():
+            self._mark_order_paid(count_waitinglist, send_mail, force, user, auth, mail_text, ignore_date, lock, payment_sum - refund_sum,
+                                  generate_invoice)
 
     def _mark_order_paid(self, count_waitinglist=True, send_mail=True, force=False, user=None, auth=None, mail_text='',
                          ignore_date=False, lock=True, payment_refund_sum=0, allow_generate_invoice=True):
         from pretix.base.services.invoices import (
-            generate_invoice, invoice_qualified,
+            generate_cancellation, generate_invoice, invoice_qualified,
         )
+        from pretix.base.services.locking import LOCK_TRUST_WINDOW
 
-        if (self.order.status == Order.STATUS_PENDING and self.order.expires > now() + timedelta(seconds=LOCK_TIMEOUT * 2)) or not lock:
+        if lock and self.order.status == Order.STATUS_PENDING and self.order.expires > now() + timedelta(seconds=LOCK_TRUST_WINDOW):
             # Performance optimization. In this case, there's really no reason to lock everything and an atomic
             # database transaction is more than enough.
-            lockfn = NoLockManager
-        else:
-            lockfn = self.order.event.lock
+            lock = False
 
-        with lockfn():
-            self._mark_paid_inner(force, count_waitinglist, user, auth, overpaid=payment_refund_sum > self.order.total,
-                                  ignore_date=ignore_date)
+        self._mark_paid_inner(force, count_waitinglist, user, auth, overpaid=payment_refund_sum > self.order.total,
+                              ignore_date=ignore_date, lock=lock)
 
         invoice = None
         if invoice_qualified(self.order) and allow_generate_invoice:
@@ -1806,9 +1862,14 @@ class OrderPayment(models.Model):
             cancellations = self.order.invoices.filter(is_cancellation=True).count()
             gen_invoice = (
                 (invoices == 0 and self.order.event.settings.get('invoice_generate') in ('True', 'paid')) or
-                0 < invoices <= cancellations
+                0 < invoices <= cancellations or
+                self.order.invoice_dirty
             )
             if gen_invoice:
+                if invoices:
+                    last_i = self.order.invoices.filter(is_cancellation=False).last()
+                    if not last_i.canceled:
+                        generate_cancellation(last_i)
                 invoice = generate_invoice(
                     self.order,
                     trigger_pdf=not send_mail or not self.order.event.settings.invoice_email_attachment
@@ -2082,6 +2143,12 @@ class OrderRefund(models.Model):
             self.local_id = (self.order.refunds.aggregate(m=Max('local_id'))['m'] or 0) + 1
             if 'update_fields' in kwargs:
                 kwargs['update_fields'] = {'local_id'}.union(kwargs['update_fields'])
+
+        if self.state == OrderRefund.REFUND_STATE_DONE and not self.execution_date:
+            self.execution_date = now()
+            if 'update_fields' in kwargs:
+                kwargs['update_fields'] = {'execution_date'}.union(kwargs['update_fields'])
+
         super().save(*args, **kwargs)
 
 
@@ -2369,6 +2436,17 @@ class OrderPosition(AbstractPosition):
             return True
         return False
 
+    @cached_property
+    def checkin_texts(self):
+        texts = []
+        if self.order.checkin_text:
+            texts.append(self.order.checkin_text)
+        if self.variation_id and self.variation.checkin_text:
+            texts.append(self.variation.checkin_text)
+        if self.item.checkin_text:
+            texts.append(self.item.checkin_text)
+        return texts
+
     @property
     def checkins(self):
         """
@@ -2611,7 +2689,7 @@ class OrderPosition(AbstractPosition):
         with language(self.order.locale, self.order.event.settings.region):
             email_template = self.event.settings.mail_text_resend_link
             email_context = get_email_context(event=self.order.event, order=self.order, position=self)
-            email_subject = self.event.settings.mail_subject_resend_link
+            email_subject = self.event.settings.mail_subject_resend_link_attendee
             self.send_mail(
                 email_subject, email_template, email_context,
                 'pretix.event.order.email.resend', user=user, auth=auth,

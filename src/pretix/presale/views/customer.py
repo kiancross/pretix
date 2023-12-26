@@ -35,7 +35,7 @@ from django.db.models import (
     Count, IntegerField, OuterRef, Prefetch, Q, Subquery,
 )
 from django.http import Http404, HttpResponseRedirect
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, render
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.utils.functional import cached_property
@@ -343,7 +343,7 @@ class CustomerRequiredMixin:
         if not request.organizer.settings.customer_accounts:
             raise Http404('Feature not enabled')
         if not getattr(request, 'customer', None):
-            return redirect(
+            return redirect_to_url(
                 eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
                 '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
             )
@@ -562,17 +562,21 @@ class ConfirmChangeView(View):
             messages.error(request, _('You clicked an invalid link.'))
             return HttpResponseRedirect(self.get_success_url())
 
-        with transaction.atomic():
-            customer.email = data['email']
-            customer.save()
-            customer.log_action('pretix.customer.changed', {
-                'email': data['email']
-            })
+        try:
+            with transaction.atomic():
+                customer.email = data['email']
+                customer.save()
+                customer.log_action('pretix.customer.changed', {
+                    'email': data['email']
+                })
+        except IntegrityError:
+            messages.success(request, _('Your email address has not been updated since the address is already in use '
+                                        'for another customer account.'))
+        else:
+            messages.success(request, _('Your email address has been updated.'))
 
-        messages.success(request, _('Your email address has been updated.'))
-
-        if customer == request.customer:
-            update_customer_session_auth_hash(self.request, customer)
+            if customer == request.customer:
+                update_customer_session_auth_hash(self.request, customer)
 
         return HttpResponseRedirect(self.get_success_url())
 
@@ -761,6 +765,17 @@ class SSOLoginReturnView(RedirectBackMixin, View):
             try:
                 customer.save(force_insert=True)
                 customer_created.send(customer.organizer, customer=customer)
+                customer.log_action('pretix.customer.created', user=self.request.user, data=dict(
+                    identifier=identifier,
+                    external_identifier=profile['uid'],
+                    provider=self.provider.pk,
+                    email=profile['email'],
+                    phone=profile.get('phone') or None,
+                    name_parts=name_parts,
+                    is_active=True,
+                    is_verified=True,
+                    locale=request.LANGUAGE_CODE,
+                ))
             except IntegrityError:
                 # This might either be a race condition or the email address is taken
                 # by a different customer account
@@ -833,7 +848,7 @@ class SSOLoginReturnView(RedirectBackMixin, View):
                 self.request,
                 message,
             )
-            return redirect(eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}))
+            return redirect_to_url(eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}))
         else:
             return render(self.request, 'pretixpresale/postmessage.html', {
                 'message': {

@@ -49,7 +49,7 @@ from django.db.models import (
     Count, Exists, IntegerField, OuterRef, Prefetch, Q, Value,
 )
 from django.http import Http404, HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
 from django.utils.formats import get_format
 from django.utils.functional import SimpleLazyObject
@@ -78,6 +78,7 @@ from pretix.presale.views.organizer import (
 )
 
 from ...helpers.formats.en.formats import SHORT_MONTH_DAY_FORMAT, WEEK_FORMAT
+from ...helpers.http import redirect_to_url
 from . import (
     CartMixin, EventViewMixin, allow_frame_if_namespaced, get_cart,
     iframe_entry_view_wrapper,
@@ -127,52 +128,77 @@ def get_grouped_items(event, subevent=None, voucher=None, channel='web', require
     else:
         prefetch_membership_types = []
 
+    prefetch_var = Prefetch(
+        'variations',
+        to_attr='available_variations',
+        queryset=ItemVariation.objects.using(settings.DATABASE_REPLICA).annotate(
+            subevent_disabled=Exists(
+                SubEventItemVariation.objects.filter(
+                    Q(disabled=True) | Q(available_from__gt=now()) | Q(available_until__lt=now()),
+                    variation_id=OuterRef('pk'),
+                    subevent=subevent,
+                )
+            ),
+        ).filter(
+            variation_q,
+            active=True,
+            sales_channels__contains=channel,
+            quotas__isnull=False,
+            subevent_disabled=False
+        ).prefetch_related(
+            *prefetch_membership_types,
+            Prefetch('quotas',
+                     to_attr='_subevent_quotas',
+                     queryset=event.quotas.using(settings.DATABASE_REPLICA).filter(
+                         subevent=subevent))
+        ).distinct()
+    )
+    prefetch_quotas = Prefetch(
+        'quotas',
+        to_attr='_subevent_quotas',
+        queryset=event.quotas.using(settings.DATABASE_REPLICA).filter(subevent=subevent)
+    )
+    prefetch_bundles = Prefetch(
+        'bundles',
+        queryset=ItemBundle.objects.using(settings.DATABASE_REPLICA).prefetch_related(
+            Prefetch('bundled_item',
+                     queryset=event.items.using(settings.DATABASE_REPLICA).select_related(
+                         'tax_rule').prefetch_related(
+                         Prefetch('quotas',
+                                  to_attr='_subevent_quotas',
+                                  queryset=event.quotas.using(settings.DATABASE_REPLICA).filter(
+                                      subevent=subevent)),
+                     )),
+            Prefetch('bundled_variation',
+                     queryset=ItemVariation.objects.using(
+                         settings.DATABASE_REPLICA
+                     ).select_related('item', 'item__tax_rule').filter(item__event=event).prefetch_related(
+                         Prefetch('quotas',
+                                  to_attr='_subevent_quotas',
+                                  queryset=event.quotas.using(settings.DATABASE_REPLICA).filter(
+                                      subevent=subevent)),
+                     )),
+        )
+    )
+
     items = base_qs.using(settings.DATABASE_REPLICA).filter_available(channel=channel, voucher=voucher, allow_addons=allow_addons).select_related(
         'category', 'tax_rule',  # for re-grouping
         'hidden_if_available',
     ).prefetch_related(
         *prefetch_membership_types,
-        Prefetch('quotas',
-                 to_attr='_subevent_quotas',
-                 queryset=event.quotas.using(settings.DATABASE_REPLICA).filter(subevent=subevent)),
-        Prefetch('bundles',
-                 queryset=ItemBundle.objects.using(settings.DATABASE_REPLICA).prefetch_related(
-                     Prefetch('bundled_item',
-                              queryset=event.items.using(settings.DATABASE_REPLICA).select_related('tax_rule').prefetch_related(
-                                  Prefetch('quotas',
-                                           to_attr='_subevent_quotas',
-                                           queryset=event.quotas.using(settings.DATABASE_REPLICA).filter(subevent=subevent)),
-                              )),
-                     Prefetch('bundled_variation',
-                              queryset=ItemVariation.objects.using(
-                                  settings.DATABASE_REPLICA
-                              ).select_related('item', 'item__tax_rule').filter(item__event=event).prefetch_related(
-                                  Prefetch('quotas',
-                                           to_attr='_subevent_quotas',
-                                           queryset=event.quotas.using(settings.DATABASE_REPLICA).filter(subevent=subevent)),
-                              )),
-                 )),
-        Prefetch('variations', to_attr='available_variations',
-                 queryset=ItemVariation.objects.using(settings.DATABASE_REPLICA).annotate(
-                     subevent_disabled=Exists(
-                         SubEventItemVariation.objects.filter(
-                             Q(disabled=True) | Q(available_from__gt=now()) | Q(available_until__lt=now()),
-                             variation_id=OuterRef('pk'),
-                             subevent=subevent,
-                         )
-                     ),
-                 ).filter(
-                     variation_q,
-                     active=True,
-                     sales_channels__contains=channel,
-                     quotas__isnull=False,
-                     subevent_disabled=False
-                 ).prefetch_related(
-                     *prefetch_membership_types,
-                     Prefetch('quotas',
-                              to_attr='_subevent_quotas',
-                              queryset=event.quotas.using(settings.DATABASE_REPLICA).filter(subevent=subevent))
-                 ).distinct()),
+        Prefetch(
+            'hidden_if_item_available',
+            queryset=event.items.annotate(
+                has_variations=Count('variations'),
+            ).prefetch_related(
+                prefetch_var,
+                prefetch_quotas,
+                prefetch_bundles,
+            )
+        ),
+        prefetch_quotas,
+        prefetch_var,
+        prefetch_bundles,
     ).annotate(
         quotac=Count('quotas'),
         has_variations=Count('variations'),
@@ -256,13 +282,26 @@ def get_grouped_items(event, subevent=None, voucher=None, channel='web', require
                 item._remove = True
                 continue
 
+        if item.hidden_if_item_available:
+            if item.hidden_if_item_available.has_variations:
+                dependency_available = any(
+                    var.check_quotas(subevent=subevent, _cache=quota_cache, include_bundled=True)[0] == Quota.AVAILABILITY_OK
+                    for var in item.hidden_if_item_available.available_variations
+                )
+            else:
+                q = item.hidden_if_item_available.check_quotas(subevent=subevent, _cache=quota_cache, include_bundled=True)
+                dependency_available = q[0] == Quota.AVAILABILITY_OK
+            if dependency_available:
+                item._remove = True
+                continue
+
         if item.require_membership and item.require_membership_hidden:
             if not memberships or not any([m.membership_type in item.require_membership_types.all() for m in memberships]):
                 item._remove = True
                 continue
 
         item.description = str(item.description)
-        for recv, resp in item_description.send(sender=event, item=item, variation=None):
+        for recv, resp in item_description.send(sender=event, item=item, variation=None, subevent=subevent):
             if resp:
                 item.description += ("<br/>" if item.description else "") + resp
 
@@ -300,6 +339,10 @@ def get_grouped_items(event, subevent=None, voucher=None, channel='web', require
                 price = original_price
 
             item.display_price = item.tax(price, currency=event.currency, include_bundled=True)
+            if item.free_price and item.free_price_suggestion is not None:
+                item.suggested_price = item.tax(max(price, item.free_price_suggestion), currency=event.currency, include_bundled=True)
+            else:
+                item.suggested_price = item.display_price
 
             if price != original_price:
                 item.original_price = item.tax(original_price, currency=event.currency, include_bundled=True)
@@ -319,7 +362,7 @@ def get_grouped_items(event, subevent=None, voucher=None, channel='web', require
                         continue
 
                 var.description = str(var.description)
-                for recv, resp in item_description.send(sender=event, item=item, variation=var):
+                for recv, resp in item_description.send(sender=event, item=item, variation=var, subevent=subevent):
                     if resp:
                         var.description += ("<br/>" if var.description else "") + resp
 
@@ -345,6 +388,15 @@ def get_grouped_items(event, subevent=None, voucher=None, channel='web', require
                     price = original_price
 
                 var.display_price = var.tax(price, currency=event.currency, include_bundled=True)
+
+                if item.free_price and var.free_price_suggestion is not None:
+                    var.suggested_price = item.tax(max(price, var.free_price_suggestion), currency=event.currency,
+                                                   include_bundled=True)
+                elif item.free_price and item.free_price_suggestion is not None:
+                    var.suggested_price = item.tax(max(price, item.free_price_suggestion), currency=event.currency,
+                                                   include_bundled=True)
+                else:
+                    var.suggested_price = var.display_price
 
                 if price != original_price:
                     var.original_price = var.tax(original_price, currency=event.currency, include_bundled=True)
@@ -405,14 +457,14 @@ class EventIndex(EventViewMixin, EventListMixin, CartMixin, TemplateView):
         if all(k in request.GET for k in keys):
             get_params = {k: v for k, v in request.GET.items() if k not in keys}
             get_params["date"] = "%s-%s" % (request.GET.get("year"), request.GET.get("month"))
-            return redirect(self.request.path + "?" + urlencode(get_params))
+            return redirect_to_url(self.request.path + "?" + urlencode(get_params))
 
         # redirect old week-year-URLs to new date-URLs
         keys = ("week", "year")
         if all(k in request.GET for k in keys):
             get_params = {k: v for k, v in request.GET.items() if k not in keys}
             get_params["date"] = "%s-W%s" % (request.GET.get("year"), request.GET.get("week"))
-            return redirect(self.request.path + "?" + urlencode(get_params))
+            return redirect_to_url(self.request.path + "?" + urlencode(get_params))
 
         from pretix.presale.views.cart import get_or_create_cart_id
 
@@ -420,11 +472,11 @@ class EventIndex(EventViewMixin, EventListMixin, CartMixin, TemplateView):
         if request.GET.get('src', '') == 'widget' and 'take_cart_id' in request.GET:
             # User has clicked "Open in a new tab" link in widget
             get_or_create_cart_id(request)
-            return redirect(eventreverse(request.event, 'presale:event.index', kwargs=kwargs))
+            return redirect_to_url(eventreverse(request.event, 'presale:event.index', kwargs=kwargs))
         elif request.GET.get('iframe', '') == '1' and 'take_cart_id' in request.GET:
             # Widget just opened, a cart already exists. Let's to a stupid redirect to check if cookies are disabled
             get_or_create_cart_id(request)
-            return redirect(eventreverse(request.event, 'presale:event.index', kwargs=kwargs) + '?' + urllib.parse.urlencode({
+            return redirect_to_url(eventreverse(request.event, 'presale:event.index', kwargs=kwargs) + '?' + urllib.parse.urlencode({
                 'require_cookie': 'true',
                 'cart_id': request.GET.get('take_cart_id'),
                 **({"locale": request.GET.get('locale')} if request.GET.get('locale') else {}),
@@ -459,7 +511,7 @@ class EventIndex(EventViewMixin, EventListMixin, CartMixin, TemplateView):
                 return super().get(request, *args, **kwargs)
         else:
             if 'subevent' in kwargs:
-                return redirect(self.get_index_url())
+                return redirect_to_url(self.get_index_url())
             else:
                 return super().get(request, *args, **kwargs)
 
@@ -516,12 +568,13 @@ class EventIndex(EventViewMixin, EventListMixin, CartMixin, TemplateView):
             items = [i for i in items if not i.requires_seat]
             context['itemnum'] = len(items)
             context['allfree'] = all(
-                item.display_price.gross == Decimal('0.00') for item in items if not item.has_variations
+                item.display_price.gross == Decimal('0.00') and not item.mandatory_priced_addons
+                for item in items if not item.has_variations
             ) and all(
                 all(
                     var.display_price.gross == Decimal('0.00')
                     for var in item.available_variations
-                )
+                ) and not item.mandatory_priced_addons
                 for item in items if item.has_variations
             )
 
@@ -735,11 +788,11 @@ class SeatingPlanView(EventViewMixin, TemplateView):
         if request.GET.get('src', '') == 'widget' and 'take_cart_id' in request.GET:
             # User has clicked "Open in a new tab" link in widget
             get_or_create_cart_id(request)
-            return redirect(eventreverse(request.event, 'presale:event.seatingplan', kwargs=kwargs))
+            return redirect_to_url(eventreverse(request.event, 'presale:event.seatingplan', kwargs=kwargs))
         elif request.GET.get('iframe', '') == '1' and 'take_cart_id' in request.GET:
             # Widget just opened, a cart already exists. Let's to a stupid redirect to check if cookies are disabled
             get_or_create_cart_id(request)
-            return redirect(eventreverse(request.event, 'presale:event.seatingplan', kwargs=kwargs) + '?require_cookie=true&cart_id={}'.format(
+            return redirect_to_url(eventreverse(request.event, 'presale:event.seatingplan', kwargs=kwargs) + '?require_cookie=true&cart_id={}'.format(
                 request.GET.get('take_cart_id')
             ))
         elif request.GET.get('iframe', '') == '1' and len(self.request.GET.get('widget_data', '{}')) > 3:
@@ -838,4 +891,4 @@ class EventAuth(View):
                 raise PermissionDenied(_('Please go back and try again.'))
 
         request.session['pretix_event_access_{}'.format(request.event.pk)] = parent
-        return redirect(eventreverse(request.event, 'presale:event.index'))
+        return redirect_to_url(eventreverse(request.event, 'presale:event.index'))

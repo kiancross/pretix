@@ -2,6 +2,16 @@
   color: $text-muted;
 }
 
+.content-placeholder {
+  padding-left: 2px;
+  padding-right: 2px;
+  background: $gray-lighter;
+  border: 0;
+  border-radius: $border-radius-base;
+  margin-bottom: 4px;
+  margin-right: 6px;
+}
+
 td > .form-group {
   margin-bottom: 0;
 }
@@ -399,7 +409,9 @@ label .optional {
 .select2-hidden-accessible {
     top: 50px;
 }
-
+.select2-selection__placeholder {
+  font-style: italic;
+}
 .large-select2-field-container .select2-container--bootstrap .select2-selection--multiple {
   height: 150px;
   overflow-y: auto;
@@ -788,12 +800,32 @@ table td > .checkbox input[type="checkbox"] {
   padding-bottom: 5px;
 }
 
-
 .batch-select-label {
   display: block;
   width: 100%;
   height: 1.5em;
   cursor: pointer;
+  margin: 0;
+}
+
+.dropdown-menu > li > button.btn {
+  display: block;
+  padding: 3px 20px;
+  clear: both;
+  font-weight: 400;
+  line-height: $line-height-base;
+  color: $dropdown-link-color;
+  white-space: nowrap;
+  background: inherit;
+  border: 0;
+  width: 100%;
+  text-align: left;
+
+  &:hover, &:focus {
+    color: $dropdown-link-hover-color;
+    text-decoration: none;
+    background-color: $dropdown-link-hover-bg;
+  }
 }
 
 .bulk-edit-field-group {

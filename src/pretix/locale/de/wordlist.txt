@@ -6,14 +6,17 @@ Absenderinformation
 Absendername
 Admin
 Adminbereich
+Affirm
 AGPL
 AGPLv
 Alipay
 and
 App
+ApplePay
 Apps
 APM
 as
+Aufbuchungen
 Aufteilungsliste
 aufzubuchen
 auschecken
@@ -57,8 +60,10 @@ Branding
 Browsereinstellungen
 BSD
 bspw
+Bokmål
 Boleto
 Bundles
+Butterfly
 bzw
 ca
 Cc
@@ -67,6 +72,7 @@ charge
 Checkout
 Chrome
 Choice
+Community
 CONFIRM
 Connect
 Consent
@@ -161,6 +167,7 @@ JavaScript
 JSON
 Kategoriebeschreibung
 Key
+Klarna
 Kombitickets
 Kompatibilitätsmodus
 Konfigurations
@@ -335,6 +342,7 @@ URIs
 Ursprüngl
 USt
 Überweisungs
+Überzahlten
 Validierung
 Venmo
 Veranstaltereinstellungen
@@ -367,6 +375,7 @@ XXXXX
 Yubikey
 Zahlungs
 Zahlungsbestätigungs
+Zahlungserinnerungs
 zahlungspflichtig
 Zahlungsplugins
 Zehnerkarten

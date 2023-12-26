@@ -316,6 +316,9 @@
                 {% if sform.event_list_available_only %}
                     {% bootstrap_field sform.event_list_available_only layout="control" %}
                 {% endif %}
+                {% if sform.event_list_filters %}
+                    {% bootstrap_field sform.event_list_filters layout="control" %}
+                {% endif %}
                 {% if sform.event_calendar_future_only %}
                     {% bootstrap_field sform.event_calendar_future_only layout="control" %}
                 {% endif %}
@@ -337,7 +340,7 @@
                 <div class="alert alert-info">
                     {% blocktrans trimmed %}
                         The waiting list currently is not compatible with some advanced features of pretix such as
-                        add-on products or product bundles.
+                        hidden products, add-on products or product bundles.
                     {% endblocktrans %}
                 </div>
                 <div class="alert alert-info">

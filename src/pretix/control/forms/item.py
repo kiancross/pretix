@@ -45,7 +45,7 @@ from django.db.models import Max
 from django.forms.formsets import DELETION_FIELD_NAME
 from django.urls import reverse
 from django.utils.functional import cached_property
-from django.utils.html import escape
+from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import (
     gettext as __, gettext_lazy as _, pgettext_lazy,
@@ -133,6 +133,14 @@ class QuestionForm(I18nModelForm):
 
         return val
 
+    def clean_show_during_checkin(self):
+        val = self.cleaned_data.get('show_during_checkin')
+
+        if val and self.cleaned_data.get('type') in Question.SHOW_DURING_CHECKIN_UNSUPPORTED:
+            raise ValidationError(_('This type of question cannot be shown during check-in.'))
+
+        return val
+
     def clean_identifier(self):
         val = self.cleaned_data.get('identifier')
         Question._clean_identifier(self.instance.event, val, self.instance)
@@ -155,6 +163,7 @@ class QuestionForm(I18nModelForm):
             'type',
             'required',
             'ask_during_checkin',
+            'show_during_checkin',
             'hidden',
             'identifier',
             'items',
@@ -379,6 +388,7 @@ class ItemCreateForm(I18nModelForm):
                 'max_per_order',
                 'generate_tickets',
                 'checkin_attention',
+                'checkin_text',
                 'free_price',
                 'original_price',
                 'sales_channels',
@@ -387,6 +397,7 @@ class ItemCreateForm(I18nModelForm):
                 'allow_waitinglist',
                 'show_quota_left',
                 'hidden_if_available',
+                'hidden_if_item_available',
                 'require_bundling',
                 'require_membership',
                 'grant_membership_type',
@@ -461,11 +472,6 @@ class ItemCreateForm(I18nModelForm):
                 )
 
         if self.cleaned_data.get('copy_from'):
-            for mv in self.cleaned_data['copy_from'].meta_values.all():
-                mv.pk = None
-                mv.item = instance
-                mv.save(force_insert=True)
-
             for question in self.cleaned_data['copy_from'].questions.all():
                 question.items.add(instance)
                 question.log_action('pretix.event.question.changed', user=self.user, data={
@@ -555,19 +561,43 @@ class ItemUpdateForm(I18nModelForm):
             widget=forms.CheckboxSelectMultiple
         )
         change_decimal_field(self.fields['default_price'], self.event.currency)
-        self.fields['hidden_if_available'].queryset = self.event.quotas.all()
-        self.fields['hidden_if_available'].widget = Select2(
+
+        if self.instance.hidden_if_available_id:
+            self.fields['hidden_if_available'].queryset = self.event.quotas.all()
+            self.fields['hidden_if_available'].help_text = format_html(
+                "<strong>{}</strong> {}",
+                _("This option is deprecated. For new products, use the newer option below that refers to another "
+                  "product instead of a quota."),
+                self.fields['hidden_if_available'].help_text
+            )
+            self.fields['hidden_if_available'].widget = Select2(
+                attrs={
+                    'data-model-select2': 'generic',
+                    'data-select2-url': reverse('control:event.items.quotas.select2', kwargs={
+                        'event': self.event.slug,
+                        'organizer': self.event.organizer.slug,
+                    }),
+                    'data-placeholder': _('Shown independently of other products')
+                }
+            )
+            self.fields['hidden_if_available'].widget.choices = self.fields['hidden_if_available'].choices
+            self.fields['hidden_if_available'].required = False
+        else:
+            del self.fields['hidden_if_available']
+
+        self.fields['hidden_if_item_available'].queryset = self.event.items.exclude(id=self.instance.id)
+        self.fields['hidden_if_item_available'].widget = Select2(
             attrs={
                 'data-model-select2': 'generic',
-                'data-select2-url': reverse('control:event.items.quotas.select2', kwargs={
+                'data-select2-url': reverse('control:event.items.select2', kwargs={
                     'event': self.event.slug,
                     'organizer': self.event.organizer.slug,
                 }),
                 'data-placeholder': _('Shown independently of other products')
             }
         )
-        self.fields['hidden_if_available'].widget.choices = self.fields['hidden_if_available'].choices
-        self.fields['hidden_if_available'].required = False
+        self.fields['hidden_if_item_available'].widget.choices = self.fields['hidden_if_item_available'].choices
+        self.fields['hidden_if_item_available'].required = False
 
         self.fields['category'].queryset = self.instance.event.categories.all()
         self.fields['category'].widget = Select2(
@@ -581,6 +611,8 @@ class ItemUpdateForm(I18nModelForm):
             }
         )
         self.fields['category'].widget.choices = self.fields['category'].choices
+
+        self.fields['free_price_suggestion'].widget.attrs['data-display-dependency'] = '#id_free_price'
 
         qs = self.event.organizer.membership_types.all()
         if qs:
@@ -669,6 +701,7 @@ class ItemUpdateForm(I18nModelForm):
             'picture',
             'default_price',
             'free_price',
+            'free_price_suggestion',
             'tax_rule',
             'available_from',
             'available_until',
@@ -680,11 +713,13 @@ class ItemUpdateForm(I18nModelForm):
             'max_per_order',
             'min_per_order',
             'checkin_attention',
+            'checkin_text',
             'generate_tickets',
             'original_price',
             'require_bundling',
             'show_quota_left',
             'hidden_if_available',
+            'hidden_if_item_available',
             'issue_giftcard',
             'require_membership',
             'require_membership_types',
@@ -711,6 +746,7 @@ class ItemUpdateForm(I18nModelForm):
             'validity_fixed_from': SplitDateTimeField,
             'validity_fixed_until': SplitDateTimeField,
             'hidden_if_available': SafeModelChoiceField,
+            'hidden_if_item_available': SafeModelChoiceField,
             'grant_membership_type': SafeModelChoiceField,
             'require_membership_types': SafeModelMultipleChoiceField,
         }
@@ -726,6 +762,7 @@ class ItemUpdateForm(I18nModelForm):
             'show_quota_left': ShowQuotaNullBooleanSelect(),
             'max_per_order': forms.widgets.NumberInput(attrs={'min': 0}),
             'min_per_order': forms.widgets.NumberInput(attrs={'min': 0}),
+            'checkin_text': forms.TextInput(),
         }
 
 
@@ -802,6 +839,8 @@ class ItemVariationForm(I18nModelForm):
             del self.fields['require_membership']
             del self.fields['require_membership_types']
 
+        self.fields['free_price_suggestion'].widget.attrs['data-display-dependency'] = '#id_free_price'
+
         self.meta_fields = []
         meta_defaults = {}
         if self.instance.pk:
@@ -834,6 +873,7 @@ class ItemVariationForm(I18nModelForm):
             'value',
             'active',
             'default_price',
+            'free_price_suggestion',
             'original_price',
             'description',
             'require_approval',
@@ -841,6 +881,7 @@ class ItemVariationForm(I18nModelForm):
             'require_membership_hidden',
             'require_membership_types',
             'checkin_attention',
+            'checkin_text',
             'available_from',
             'available_until',
             'sales_channels',
@@ -856,6 +897,7 @@ class ItemVariationForm(I18nModelForm):
             'require_membership_types': forms.CheckboxSelectMultiple(attrs={
                 'class': 'scrolling-multiple-choice'
             }),
+            'checkin_text': forms.TextInput(),
         }
 
     def clean(self):

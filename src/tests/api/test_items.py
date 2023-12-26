@@ -277,7 +277,9 @@ TEST_ITEM_RES = {
     "min_per_order": None,
     "max_per_order": None,
     "hidden_if_available": None,
+    "hidden_if_item_available": None,
     "checkin_attention": False,
+    "checkin_text": None,
     "has_variations": False,
     "require_approval": False,
     "variations": [],
@@ -285,6 +287,7 @@ TEST_ITEM_RES = {
     "bundles": [],
     "show_quota_left": None,
     "original_price": None,
+    "free_price_suggestion": None,
     "meta_data": {
         "day": "Tuesday"
     },
@@ -384,11 +387,13 @@ def test_item_detail_variations(token_client, organizer, event, team, item):
         "id": var.pk,
         "value": {"en": "Children"},
         "default_price": None,
+        "free_price_suggestion": None,
         "price": "23.00",
         "active": True,
         "description": None,
         "position": 0,
         "checkin_attention": False,
+        "checkin_text": None,
         "require_approval": False,
         "require_membership": False,
         "require_membership_hidden": False,
@@ -475,6 +480,7 @@ def test_item_create(token_client, organizer, event, item, category, taxrule, me
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+
             "has_variations": True,
             "require_membership_types": [membership_type.pk],
             "meta_data": {
@@ -553,6 +559,7 @@ def test_item_create_with_variation(token_client, organizer, event, item, catego
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+            "checkin_text": None,
             "has_variations": True,
             "variations": [
                 {
@@ -563,6 +570,7 @@ def test_item_create_with_variation(token_client, organizer, event, item, catego
                     "active": True,
                     "require_approval": True,
                     "checkin_attention": False,
+                    "checkin_text": None,
                     "require_membership": False,
                     "require_membership_hidden": False,
                     "require_membership_types": [],
@@ -615,6 +623,7 @@ def test_item_create_giftcard_validation(token_client, organizer, event, item, c
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+            "checkin_text": None,
             "has_variations": True,
             "addons": []
         },
@@ -647,6 +656,7 @@ def test_item_create_giftcard_validation(token_client, organizer, event, item, c
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+            "checkin_text": None,
             "has_variations": True,
             "addons": []
         },
@@ -684,6 +694,7 @@ def test_item_create_with_addon(token_client, organizer, event, item, category, 
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+            "checkin_text": None,
             "has_variations": True,
             "addons": [
                 {
@@ -730,6 +741,7 @@ def test_item_create_with_addon(token_client, organizer, event, item, category, 
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+            "checkin_text": None,
             "has_variations": True,
             "addons": [
                 {
@@ -774,6 +786,7 @@ def test_item_create_with_addon(token_client, organizer, event, item, category, 
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+            "checkin_text": None,
             "has_variations": True,
             "addons": [
                 {
@@ -818,6 +831,7 @@ def test_item_create_with_addon(token_client, organizer, event, item, category, 
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+            "checkin_text": None,
             "has_variations": True,
             "addons": [
                 {
@@ -870,6 +884,7 @@ def test_item_create_with_bundle(token_client, organizer, event, item, category,
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+            "checkin_text": None,
             "has_variations": True,
             "bundles": [
                 {
@@ -916,6 +931,7 @@ def test_item_create_with_bundle(token_client, organizer, event, item, category,
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+            "checkin_text": None,
             "has_variations": True,
             "bundles": [
                 {
@@ -957,6 +973,7 @@ def test_item_create_with_bundle(token_client, organizer, event, item, category,
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+            "checkin_text": None,
             "has_variations": True,
             "bundles": [
                 {
@@ -1187,6 +1204,7 @@ def test_item_file_upload(token_client, organizer, event, item):
             "min_per_order": None,
             "max_per_order": None,
             "checkin_attention": False,
+            "checkin_text": None,
             "has_variations": True,
             "meta_data": {
                 "day": "Wednesday"
@@ -1304,6 +1322,7 @@ TEST_VARIATIONS_RES = {
     "default_price": None,
     "price": "23.00",
     "checkin_attention": False,
+    "checkin_text": None,
     "require_approval": False,
     "require_membership": False,
     "require_membership_hidden": False,
@@ -1313,6 +1332,7 @@ TEST_VARIATIONS_RES = {
     "available_until": None,
     "hide_without_voucher": False,
     "original_price": None,
+    "free_price_suggestion": None,
     "meta_data": {}
 }
 
@@ -1325,6 +1345,7 @@ TEST_VARIATIONS_UPDATE = {
     "position": 1,
     "default_price": "20.0",
     "checkin_attention": False,
+    "checkin_text": None,
     "require_approval": False,
     "require_membership": False,
     "require_membership_hidden": False,
@@ -1334,6 +1355,7 @@ TEST_VARIATIONS_UPDATE = {
     "available_until": None,
     "hide_without_voucher": False,
     "original_price": None,
+    "free_price_suggestion": None,
     "meta_data": {}
 }
 
@@ -2051,6 +2073,7 @@ TEST_QUESTION_RES = {
     "required": False,
     "items": [],
     "ask_during_checkin": False,
+    "show_during_checkin": False,
     "hidden": False,
     "print_on_invoice": False,
     "identifier": "ABC",

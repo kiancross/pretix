@@ -46,6 +46,7 @@ from django_scopes.forms import SafeModelChoiceField
 
 from pretix.base.email import get_available_placeholders
 from pretix.base.forms import I18nModelForm, PlaceholderValidator
+from pretix.base.forms.widgets import format_placeholders_help_text
 from pretix.base.models import Item, Voucher
 from pretix.control.forms import SplitDateTimeField, SplitDateTimePickerWidget
 from pretix.control.forms.widgets import Select2, Select2ItemVarQuota
@@ -200,6 +201,8 @@ class VoucherForm(I18nModelForm):
             cnt = len(data['codes']) * data.get('max_usages', 0)
         else:
             cnt = data.get('max_usages', 0)
+            if self.instance and self.instance.pk:
+                cnt -= self.instance.redeemed  # these do not need quota any more
 
         Voucher.clean_item_properties(
             data, self.instance.event,
@@ -289,19 +292,15 @@ class VoucherBulkForm(VoucherForm):
     Recipient = namedtuple('Recipient', 'email number name tag')
 
     def _set_field_placeholders(self, fn, base_parameters):
-        phs = [
-            '{%s}' % p
-            for p in sorted(get_available_placeholders(self.instance.event, base_parameters).keys())
-        ]
-        ht = _('Available placeholders: {list}').format(
-            list=', '.join(phs)
-        )
+        placeholders = get_available_placeholders(self.instance.event, base_parameters)
+        ht = format_placeholders_help_text(placeholders, self.instance.event)
+
         if self.fields[fn].help_text:
             self.fields[fn].help_text += ' ' + str(ht)
         else:
             self.fields[fn].help_text = ht
         self.fields[fn].validators.append(
-            PlaceholderValidator(phs)
+            PlaceholderValidator(['{%s}' % p for p in placeholders.keys()])
         )
 
     class Meta:
@@ -340,6 +339,9 @@ class VoucherBulkForm(VoucherForm):
 
     def clean_send_recipients(self):
         raw = self.cleaned_data['send_recipients']
+        if self.cleaned_data.get('send', None) is False:
+            # No need to validate addresses if the section was turned off
+            return []
         if not raw:
             return []
         r = raw.split('\n')
@@ -395,6 +397,15 @@ class VoucherBulkForm(VoucherForm):
 
             codes_seen = set()
             for c in data['codes']:
+                if len(c) < 5:
+                    raise ValidationError({
+                        'codes': [
+                            _('The voucher code {code} is too short. Make sure all voucher codes are at least {min_length} characters long.').format(
+                                code=c,
+                                min_length=5
+                            )
+                        ]
+                    })
                 if c in codes_seen:
                     raise ValidationError(_('The voucher code {code} appears in your list twice.').format(code=c))
                 codes_seen.add(c)
