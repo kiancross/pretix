@@ -448,7 +448,7 @@ class ChangeInfoForm(forms.ModelForm):
 
     class Meta:
         model = Customer
-        fields = ('name_parts', 'email', 'phone')
+        fields = ('name_parts', 'email')
 
     def __init__(self, request=None, *args, **kwargs):
         self.request = request
@@ -468,14 +468,17 @@ class ChangeInfoForm(forms.ModelForm):
             if phone_prefix:
                 self.initial['phone'] = "+{}.".format(phone_prefix)
 
+        """
         self.fields['phone'] = PhoneNumberField(
             label=_('Phone'),
             required=False,
             widget=WrappedPhoneNumberPrefixWidget()
         )
+        """
 
         if self.instance.provider_id is not None:
             self.fields['email'].disabled = True
+            self.fields['name_parts'].disabled = True
             self.fields['email'].help_text = _(
                 'To change your email address, change it in your {provider} account and then log out and log in '
                 'again.'

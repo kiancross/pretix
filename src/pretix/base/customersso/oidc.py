@@ -141,6 +141,7 @@ def oidc_authorize_url(provider, state, redirect_uri):
         'scope': provider.configuration['scope'],
         'state': state,
         'redirect_uri': redirect_uri,
+        'hd': "cam.ac.uk"
     }
     return endpoint + '?' + urlencode(params)
 

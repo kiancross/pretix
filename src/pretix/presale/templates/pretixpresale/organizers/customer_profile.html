@@ -34,10 +34,6 @@
                 {% endif %}
             </dl>
             <div class="text-right">
-                <a href="{% eventurl request.organizer "presale:organizer.customer.change" %}"
-                        class="btn btn-default">
-                    {% trans "Change account information" %}
-                </a>
                 {% if not customer.provider %}
                     <a href="{% eventurl request.organizer "presale:organizer.customer.password" %}"
                             class="btn btn-default">
@@ -54,12 +50,6 @@
             </li>
             <li role="presentation">
                 <a href="#memberships" aria-controls="memberships" role="tab" data-toggle="tab">{% trans "Memberships" %}</a>
-            </li>
-            <li role="presentation">
-                <a href="#addresses" aria-controls="addresses" role="tab" data-toggle="tab">{% trans "Addresses" %}</a>
-            </li>
-            <li role="presentation">
-                <a href="#profiles" aria-controls="profiles" role="tab" data-toggle="tab">{% trans "Attendee profiles" %}</a>
             </li>
         </ul>
         <div class="tab-content">

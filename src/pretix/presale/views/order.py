@@ -98,14 +98,33 @@ from pretix.presale.views.event import get_grouped_items
 from pretix.presale.views.robots import NoSearchIndexViewMixin
 
 
-class OrderDetailMixin(NoSearchIndexViewMixin):
+class AdminAccessMixin:
+    def admin_has_access(self):
+        return (
+            self.request.user.is_authenticated
+            and self.request.user.has_event_permission(
+                self.request.organizer, self.request.event, 'can_view_orders', request=self.request
+            )
+        )
+
+
+class OrderDetailMixin(NoSearchIndexViewMixin, AdminAccessMixin):
 
     @cached_property
     def order(self):
         order = self.request.event.orders.filter(code=self.kwargs['order']).select_related('event').first()
         if order:
             if order.secret.lower() == self.kwargs['secret'].lower():
-                return order
+                if self.admin_has_access():
+                    return order
+
+                if order.customer is None:
+                    return order
+                else:
+                    if self.request.customer and order.customer.id == self.request.customer.id:
+                        return order
+                    else:
+                        return None
             else:
                 return None
         else:
@@ -169,8 +188,7 @@ class OrderOpen(EventViewMixin, OrderDetailMixin, View):
         return redirect(self.get_order_url())
 
 
-class TicketPageMixin:
-
+class TicketPageMixin(AdminAccessMixin):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
 
@@ -193,10 +211,7 @@ class TicketPageMixin:
 
         ctx['download_buttons'] = self.download_buttons
 
-        ctx['backend_user'] = (
-            self.request.user.is_authenticated
-            and self.request.user.has_event_permission(self.request.organizer, self.request.event, 'can_view_orders', request=self.request)
-        )
+        ctx['backend_user'] = self.admin_has_access()
         return ctx
 
 
