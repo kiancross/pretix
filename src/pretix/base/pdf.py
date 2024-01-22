@@ -67,6 +67,7 @@ from pypdf.generic import RectangleObject
 from reportlab.graphics import renderPDF
 from reportlab.graphics.barcode.qr import QrCodeWidget
 from reportlab.graphics.shapes import Drawing
+from reportlab.lib import colors
 from reportlab.lib.colors import Color
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.styles import ParagraphStyle
@@ -798,7 +799,7 @@ class Renderer:
         kwargs = {}
         if o.get('nowhitespace', False):
             kwargs['barBorder'] = 0
-        qrw = QrCodeWidget(content, barLevel=level, barHeight=reqs, barWidth=reqs, **kwargs)
+        qrw = QrCodeWidget(content, barLevel=level, barHeight=reqs, barWidth=reqs, barFillColor=colors.white, **kwargs)
         d = Drawing(reqs, reqs)
         d.add(qrw)
         qr_x = float(o['left']) * mm
