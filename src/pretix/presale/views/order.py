@@ -41,9 +41,12 @@ import re
 from collections import OrderedDict, defaultdict
 from decimal import Decimal
 
+from urllib.parse import urlparse, quote
+
 from django import forms
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.db import transaction
@@ -97,7 +100,7 @@ from pretix.presale.views import (
 )
 from pretix.presale.views.event import get_grouped_items
 from pretix.presale.views.robots import NoSearchIndexViewMixin
-
+from pretix.helpers.http import redirect_to_url
 
 class AdminAccessMixin:
     def admin_has_access(self):
@@ -125,7 +128,7 @@ class OrderDetailMixin(NoSearchIndexViewMixin, AdminAccessMixin):
                     if self.request.customer and order.customer.id == self.request.customer.id:
                         return order
                     else:
-                        return None
+                        return False
             else:
                 return None
         else:
@@ -222,8 +225,13 @@ class OrderDetails(EventViewMixin, OrderDetailMixin, CartMixin, TicketPageMixin,
 
     def get(self, request, *args, **kwargs):
         self.kwargs = kwargs
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
         if self.order.status == Order.STATUS_PENDING:
             payment_to_complete = self.order.payments.filter(state=OrderPayment.PAYMENT_STATE_CREATED, process_initiated=False).first()
             if payment_to_complete:
