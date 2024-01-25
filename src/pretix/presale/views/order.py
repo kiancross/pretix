@@ -125,8 +125,11 @@ class OrderDetailMixin(NoSearchIndexViewMixin, AdminAccessMixin):
                 if order.customer is None:
                     return order
                 else:
-                    if self.request.customer and order.customer.id == self.request.customer.id:
-                        return order
+                    if self.request.customer:
+                        if order.customer.id == self.request.customer.id:
+                            return order
+                        else:
+                            return None
                     else:
                         return False
             else:
