@@ -134,7 +134,7 @@ class WaitingView(EventViewMixin, FormView):
         form.instance.log_action("pretix.event.orders.waitinglist.added")
         messages.success(self.request, _(
             "We've added you to the waiting list. We will send an email "
-            "to {email} as soon as this product gets available again."
+            "to {email} as soon as this product becomes available again."
         ).format(email=form.instance.email))
         return super().form_valid(form)
 

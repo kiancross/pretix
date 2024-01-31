@@ -9,14 +9,7 @@
 {% load rich_text %}
 {% block title %}
     {% if "thanks" in request.GET or "paid" in request.GET %}
-        {% trans "Thank you!" %}
-        {% if order.status != 'p' %}
-            {% trans "Your order has been placed successfully. See below for details." %}
-        {% elif order.total == 0 %}
-            {% trans "Your order has been processed successfully! See below for details." %}
-        {% else %}
-            {% trans "We successfully received your payment. See below for details." %}
-        {% endif %}
+        {% trans "You're going to Jesus May Ball!" %}
     {% endif %}
     {% trans "Order details" %}
 {% endblock %}
@@ -26,21 +19,21 @@
         <div class="thank-you">
             <span class="fa fa-check-circle" aria-hidden="true"></span>
 
-            <h2 class="h1">{% trans "Thank you!" %}</h2>
+            <h2 class="h1">{% trans "You're going to Jesus May Ball!" %}</h2>
             {% if order.status != 'p' %}
                 <p class="lead">
-                    {% trans "Your order has been placed successfully. See below for details." %}<br>
+                    {% trans "Your order has been successfully placed." %}<br>
                     {% if order.require_approval and order.total == 0 %}
                         <strong>
-                            {% trans "Please note that we still await approval by the event organizer before your order is confirmed." %}
+                            {% trans "Please note that your order is pending approval from us; confirmation should be completed within a day." %}
                         </strong>
                     {% elif order.require_approval %}
                         <strong>
-                            {% trans "Please note that we still await approval by the event organizer before you can pay and complete this order." %}
+                            {% trans "Please note that your order is pending approval from us; confirmation should be completed within a day, at which point you can pay for your order." %}
                         </strong>
                     {% elif not event.settings.payment_pending_hidden %}
                         <strong>
-                            {% trans "Please note that we still await your payment to complete the process." %}
+                            {% trans "Please be aware that we are still awaiting your payment to complete your order." %}
                         </strong>
                     {% endif %}
                 </p>
@@ -53,7 +46,7 @@
                 {{ request.event.settings.checkout_success_text|rich_text }}
             {% endif %}
             <p class="iframe-hidden">{% blocktrans trimmed %}
-                Please bookmark or save the link to this exact page if you want to access your order later. We also sent you an email containing the link to the address you specified.
+              For future access to your order, please bookmark or save the link to this exact page. Additionally, we have sent an email containing the link to the address you provided.
             {% endblocktrans %}</p>
             <p class="iframe-only">{% blocktrans trimmed %}
                 Please save the following link if you want to access your order later. We

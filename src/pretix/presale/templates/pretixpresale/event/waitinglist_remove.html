@@ -7,13 +7,14 @@
         {% csrf_token %}
         <p>
             {% blocktrans trimmed %}
-                You have been selected from our waiting list to buy a ticket. If you do not need the ticket any more, please be so kind and remove your ticket from the list
-                so we can pass it on to the next person waiting as quickly as possible!
+              If you no longer require the ticket, please remove yourself from
+              the list so we can promptly offer the ticket to the next person in
+              line. Thank you!
             {% endblocktrans %}
         </p>
         <p class="text-center">
             <button type="submit" class="btn btn-danger btn-lg">
-                {% trans "Yes, remove my ticket" context "waitinglist" %}
+                {% trans "Remove my ticket" context "waitinglist" %}
             </button>
         </p>
     </form>
