@@ -185,8 +185,13 @@ class OrderPositionDetailMixin(NoSearchIndexViewMixin):
 @method_decorator(xframe_options_exempt, 'dispatch')
 class OrderOpen(EventViewMixin, OrderDetailMixin, View):
     def get(self, request, *args, **kwargs):
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
         if kwargs.get('hash') == self.order.email_confirm_hash():
             if not self.order.email_known_to_work:
                 self.order.log_action('pretix.event.order.contact.confirmed')
@@ -427,8 +432,13 @@ class OrderPaymentStart(EventViewMixin, OrderDetailMixin, TemplateView):
 
     def dispatch(self, request, *args, **kwargs):
         self.request = request
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
         if (self.order.status not in (Order.STATUS_PENDING, Order.STATUS_EXPIRED)
                 or self.payment.state != OrderPayment.PAYMENT_STATE_CREATED
                 or not self.payment.payment_provider.is_enabled
@@ -495,8 +505,13 @@ class OrderPaymentConfirm(EventViewMixin, OrderDetailMixin, TemplateView):
 
     def dispatch(self, request, *args, **kwargs):
         self.request = request
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
         if self.payment.state != OrderPayment.PAYMENT_STATE_CREATED or self.order._can_be_paid() is not True:
             messages.error(request, _('The payment for this order cannot be continued.'))
             return redirect(self.get_order_url())
@@ -574,8 +589,13 @@ class OrderPaymentComplete(EventViewMixin, OrderDetailMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
         self.request = request
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
         if self.payment.state != OrderPayment.PAYMENT_STATE_CREATED or self.order._can_be_paid() is not True:
             messages.error(request, _('The payment for this order cannot be continued.'))
             return redirect(self.get_order_url())
@@ -619,8 +639,13 @@ class OrderPayChangeMethod(EventViewMixin, OrderDetailMixin, TemplateView):
 
     def dispatch(self, request, *args, **kwargs):
         self.request = request
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
         if self.order.status not in (Order.STATUS_PENDING, Order.STATUS_EXPIRED) or self.order._can_be_paid() is not True:
             messages.error(request, _('The payment method for this order cannot be changed.'))
             return redirect(self.get_order_url())
@@ -798,8 +823,13 @@ class OrderInvoiceCreate(EventViewMixin, OrderDetailMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
         self.request = request
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
@@ -911,8 +941,13 @@ class OrderModify(EventViewMixin, OrderDetailMixin, OrderQuestionsViewMixin, Tem
     def dispatch(self, request, *args, **kwargs):
         self.request = request
         self.kwargs = kwargs
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
         if not self.order.can_modify_answers:
             messages.error(request, _('You cannot modify this order'))
             return redirect(self.get_order_url())
@@ -926,8 +961,13 @@ class OrderCancel(EventViewMixin, OrderDetailMixin, TemplateView):
     def dispatch(self, request, *args, **kwargs):
         self.request = request
         self.kwargs = kwargs
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
         if not self.order.user_cancel_allowed:
             messages.error(request, _('You cannot cancel this order.'))
             return redirect(self.get_order_url())
@@ -975,8 +1015,13 @@ class OrderCancelDo(EventViewMixin, OrderDetailMixin, AsyncAction, View):
         return self.get_order_url()
 
     def post(self, request, *args, **kwargs):
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
         if not self.order.user_cancel_allowed:
             messages.error(request, _('You cannot cancel this order.'))
             return redirect(self.get_order_url())
@@ -1264,8 +1309,13 @@ class OrderPositionDownload(OrderDownloadMixin, EventViewMixin, OrderPositionDet
 class InvoiceDownload(EventViewMixin, OrderDetailMixin, View):
 
     def get(self, request, *args, **kwargs):
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
 
         try:
             invoice = Invoice.objects.get(
@@ -1647,8 +1697,13 @@ class OrderChange(OrderChangeMixin, EventViewMixin, OrderDetailMixin, TemplateVi
     def dispatch(self, request, *args, **kwargs):
         self.request = request
         self.kwargs = kwargs
-        if not self.order:
+        if self.order is None:
             raise Http404(_('Unknown order code or not authorized to access this order.'))
+        elif self.order is False:
+            return redirect_to_url(
+                eventreverse(self.request.organizer, 'presale:organizer.customer.login', kwargs={}) +
+                '?next=' + quote(self.request.path_info + '?' + self.request.GET.urlencode())
+            )
         if not self.order.user_change_allowed:
             messages.error(request, _('You cannot change this order.'))
             return redirect(self.get_order_url())
