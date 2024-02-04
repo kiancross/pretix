@@ -754,7 +754,7 @@ class EventSettingsSerializer(SettingsSerializer):
         'payment_explanation',
         'payment_pending_hidden',
         'payment_giftcard__enabled',
-        'mail_days_order_expire_warning',
+        'mail_hours_order_expire_warning',
         'ticket_download',
         'ticket_download_date',
         'ticket_download_addons',
