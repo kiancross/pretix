@@ -1464,8 +1464,8 @@ def expire_orders(sender, **kwargs):
 @scopes_disabled()
 @minimum_interval(minutes_after_success=60)
 def send_expiry_warnings(sender, **kwargs):
-    today = now().replace(hour=0, minute=0, second=0)
-    days = None
+    today = now()
+    hours = None
     settings = None
     event_id = None
 
@@ -1485,12 +1485,12 @@ def send_expiry_warnings(sender, **kwargs):
 
         if event_id != o.event_id:
             settings = o.event.settings
-            days = cache.get_or_set('{}:{}:setting_mail_days_order_expire_warning'.format('event', o.event_id),
-                                    default=lambda: settings.get('mail_days_order_expire_warning', as_type=int),
-                                    timeout=3600)
+            hours = cache.get_or_set('{}:{}:setting_mail_hours_order_expire_warning'.format('event', o.event_id),
+                                     default=lambda: settings.get('mail_hours_order_expire_warning', as_type=int),
+                                     timeout=3600)
             event_id = o.event_id
 
-        if days and (o.expires - today).days <= days:
+        if hours and ((o.expires - today).total_seconds() / 3600) <= hours:
             with transaction.atomic():
                 o = Order.objects.select_related('event').select_for_update(of=OF_SELF).get(pk=o.pk)
                 if o.status != Order.STATUS_PENDING or o.expiry_reminder_sent:
