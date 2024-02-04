@@ -1105,11 +1105,11 @@ class MailSettingsForm(SettingsForm):
         required=False,
         widget=I18nTextarea,
     )
-    mail_days_order_expire_warning = forms.IntegerField(
-        label=_("Number of days"),
+    mail_hours_order_expire_warning = forms.IntegerField(
+        label=_("Number of hours"),
         required=True,
         min_value=0,
-        help_text=_("This email will be sent out this many days before the order expires. If the "
+        help_text=_("This email will be sent out this many hours before the order expires. If the "
                     "value is 0, the mail will never be sent.")
     )
     mail_text_order_expire_warning = I18nFormField(

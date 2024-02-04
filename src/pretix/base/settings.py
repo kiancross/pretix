@@ -2314,16 +2314,16 @@ You can view the details and status of your ticket here:
 Best regards,  
 Your {event} team"""))  # noqa: W291
     },
-    'mail_days_order_expire_warning': {
+    'mail_hours_order_expire_warning': {
         'form_class': forms.IntegerField,
         'serializer_class': serializers.IntegerField,
         'serializer_kwargs': dict(
             min_value=0,
         ),
         'form_kwargs': dict(
-            label=_("Number of days"),
+            label=_("Number of hours"),
             min_value=0,
-            help_text=_("This email will be sent out this many days before the order expires. If the "
+            help_text=_("This email will be sent out this many hours before the order expires. If the "
                         "value is 0, the mail will never be sent.")
         ),
         'type': int,
