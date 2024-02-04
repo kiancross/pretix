@@ -103,7 +103,7 @@
                     {% include "pretixcontrol/event/mail_settings_fragment.html" with pid="order_changed" title=title_order_changed items="mail_subject_order_changed,mail_text_order_changed" %}
 
                     {% blocktrans asvar title_payment_reminder %}Payment reminder{% endblocktrans %}
-                    {% include "pretixcontrol/event/mail_settings_fragment.html" with pid="order_expirew" title=title_payment_reminder items="mail_days_order_expire_warning,mail_subject_order_expire_warning,mail_text_order_expire_warning,mail_subject_order_pending_warning,mail_text_order_pending_warning,mail_subject_order_incomplete_payment,mail_text_order_incomplete_payment" exclude="mail_days_order_expire_warning" %}
+                    {% include "pretixcontrol/event/mail_settings_fragment.html" with pid="order_expirew" title=title_payment_reminder items="mail_hours_order_expire_warning,mail_subject_order_expire_warning,mail_text_order_expire_warning,mail_subject_order_pending_warning,mail_text_order_pending_warning,mail_subject_order_incomplete_payment,mail_text_order_incomplete_payment" exclude="mail_hours_order_expire_warning" %}
 
                     {% blocktrans asvar title_payment_failed %}Payment failed{% endblocktrans %}
                     {% include "pretixcontrol/event/mail_settings_fragment.html" with pid="payment_failed" title=title_payment_failed items="mail_subject_order_payment_failed,mail_text_order_payment_failed" %}

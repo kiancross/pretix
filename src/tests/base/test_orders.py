@@ -28,6 +28,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from django.conf import settings
 from django.core import mail as djmail
+from django.core.cache import cache
 from django.db.models import F, Sum
 from django.test import TestCase, override_settings
 from django.utils.timezone import make_aware, now
@@ -865,6 +866,9 @@ def test_mark_invoices_as_failed(event):
 class PaymentReminderTests(TestCase):
     def setUp(self):
         super().setUp()
+        # send_expiry_warnings caches both its @minimum_interval state (60 min)
+        # and the setting value (1 hour), so clear between tests.
+        cache.clear()
         self.o = Organizer.objects.create(name='Dummy', slug='dummy')
         with scope(organizer=self.o):
             self.event = Event.objects.create(
@@ -895,13 +899,13 @@ class PaymentReminderTests(TestCase):
 
     @classscope(attr='o')
     def test_sent_once(self):
-        self.event.settings.mail_days_order_expire_warning = 12
+        self.event.settings.mail_hours_order_expire_warning = 12 * 24
         send_expiry_warnings(sender=self.event)
         assert len(djmail.outbox) == 1
 
     @classscope(attr='o')
     def test_prevent_reminder_mail(self):
-        self.event.settings.mail_days_order_expire_warning = 12
+        self.event.settings.mail_hours_order_expire_warning = 12 * 24
         pprov = list(self.event.get_payment_providers().keys())[0]
         for state in [
             OrderPayment.PAYMENT_STATE_PENDING,
@@ -919,7 +923,7 @@ class PaymentReminderTests(TestCase):
 
     @classscope(attr='o')
     def test_prevent_reminder_mail_failed_state(self):
-        self.event.settings.mail_days_order_expire_warning = 12
+        self.event.settings.mail_hours_order_expire_warning = 12 * 24
         pprov = list(self.event.get_payment_providers().keys())[0]
         payment = self.order.payments.create(
             state=OrderPayment.PAYMENT_STATE_CREATED,
@@ -935,7 +939,7 @@ class PaymentReminderTests(TestCase):
 
     @classscope(attr='o')
     def test_prevent_reminder_mail_confirmed_but_not_all_paid(self):
-        self.event.settings.mail_days_order_expire_warning = 12
+        self.event.settings.mail_hours_order_expire_warning = 12 * 24
         pprov = list(self.event.get_payment_providers().keys())[0]
         payment = self.order.payments.create(
             state=OrderPayment.PAYMENT_STATE_CREATED,
@@ -958,10 +962,11 @@ class PaymentReminderTests(TestCase):
 
     @classscope(attr='o')
     def test_sent_days(self):
-        self.event.settings.mail_days_order_expire_warning = 9
+        self.event.settings.mail_hours_order_expire_warning = 9 * 24
         send_expiry_warnings(sender=self.event)
         assert len(djmail.outbox) == 0
-        self.event.settings.mail_days_order_expire_warning = 10
+        cache.clear()
+        self.event.settings.mail_hours_order_expire_warning = 10 * 24
         send_expiry_warnings(sender=self.event)
         assert len(djmail.outbox) == 1
         assert "only guarantee your order" in djmail.outbox[0].body
@@ -970,18 +975,30 @@ class PaymentReminderTests(TestCase):
     def test_sent_no_expiry(self):
         self.order.valid_if_pending = True
         self.order.save()
-        self.event.settings.mail_days_order_expire_warning = 10
+        self.event.settings.mail_hours_order_expire_warning = 10 * 24
         send_expiry_warnings(sender=self.event)
         assert len(djmail.outbox) == 1
         assert "only guarantee your order" not in djmail.outbox[0].body
         assert "required to pay" in djmail.outbox[0].body
 
     @classscope(attr='o')
+    def test_sent_sub_day_hours(self):
+        self.order.expires = now() + timedelta(hours=5)
+        self.order.save()
+        self.event.settings.mail_hours_order_expire_warning = 4
+        send_expiry_warnings(sender=self.event)
+        assert len(djmail.outbox) == 0
+        cache.clear()
+        self.event.settings.mail_hours_order_expire_warning = 6
+        send_expiry_warnings(sender=self.event)
+        assert len(djmail.outbox) == 1
+
+    @classscope(attr='o')
     def test_sent_not_immediately_after_purchase(self):
         self.order.datetime = now()
         self.order.expires = now() + timedelta(hours=3)
         self.order.save()
-        self.event.settings.mail_days_order_expire_warning = 2
+        self.event.settings.mail_hours_order_expire_warning = 2 * 24
         send_expiry_warnings(sender=self.event)
         assert len(djmail.outbox) == 0
 
