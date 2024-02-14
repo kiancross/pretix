@@ -896,7 +896,7 @@ DEFAULTS = {
                         "Only use this if you exclusively offer real-time payment methods. Please note that for technical reasons, "
                         "the actual time frame might be a few minutes longer before the order is marked as expired."),
             validators=[MinValueValidator(0),
-                        MaxValueValidator(1440)],
+                        MaxValueValidator(2880)],
             widget=forms.NumberInput(
                 attrs={
                     'data-display-dependency': '#id_payment_term_mode_1',
@@ -906,7 +906,7 @@ DEFAULTS = {
         ),
         'serializer_kwargs': dict(
             validators=[MinValueValidator(0),
-                        MaxValueValidator(1440)]
+                        MaxValueValidator(2880)]
         )
     },
     'payment_term_last': {
