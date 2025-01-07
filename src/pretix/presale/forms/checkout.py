@@ -152,6 +152,7 @@ class QuestionsForm(BaseQuestionsForm):
 
     def __init__(self, *args, **kwargs):
         allow_save = kwargs.pop('allow_save', False)
+        allow_save = False
         super().__init__(*args, **kwargs)
         if allow_save and self.fields:
             self.fields['save'] = forms.BooleanField(
