@@ -368,24 +368,6 @@ class CustomerAccountBaseMixin(CustomerRequiredMixin):
                 'active': url_name.startswith('organizer.customer.membership'),
                 'icon': 'id-badge',
             },
-            {
-                'label': _('Gift cards'),
-                'url': eventreverse(self.request.organizer, 'presale:organizer.customer.giftcards', kwargs={}),
-                'active': url_name.startswith('organizer.customer.giftcard'),
-                'icon': 'gift',
-            },
-            {
-                'label': _('Addresses'),
-                'url': eventreverse(self.request.organizer, 'presale:organizer.customer.addresses', kwargs={}),
-                'active': url_name.startswith('organizer.customer.address'),
-                'icon': 'address-card-o',
-            },
-            {
-                'label': _('Attendee profiles'),
-                'url': eventreverse(self.request.organizer, 'presale:organizer.customer.profiles', kwargs={}),
-                'active': url_name.startswith('organizer.customer.profile'),
-                'icon': 'user',
-            },
         ]
         return ctx
 
@@ -472,6 +454,9 @@ class GiftcardView(CustomerAccountBaseMixin, ListView):
     context_object_name = 'gift_cards'
     paginate_by = 20
 
+    def dispatch(self, request, *args, **kwargs):
+        return HttpResponseForbidden()
+
     def get_queryset(self):
         return self.request.customer.customer_gift_cards.all()
 
@@ -481,6 +466,9 @@ class AddressView(CustomerAccountBaseMixin, ListView):
     context_object_name = 'invoice_addresses'
     paginate_by = 20
 
+    def dispatch(self, request, *args, **kwargs):
+        return HttpResponseForbidden()
+
     def get_queryset(self):
         return InvoiceAddress.profiles.filter(customer=self.request.customer)
 
@@ -488,6 +476,9 @@ class AddressView(CustomerAccountBaseMixin, ListView):
 class AddressDeleteView(CustomerAccountBaseMixin, CompatDeleteView):
     template_name = 'pretixpresale/organizers/customer_address_delete.html'
     context_object_name = 'address'
+
+    def dispatch(self, request, *args, **kwargs):
+        return HttpResponseForbidden()
 
     def get_object(self, **kwargs):
         return get_object_or_404(InvoiceAddress.profiles, customer=self.request.customer, pk=self.kwargs.get('id'))
@@ -501,6 +492,9 @@ class ProfileView(CustomerAccountBaseMixin, ListView):
     context_object_name = 'attendee_profiles'
     paginate_by = 20
 
+    def dispatch(self, request, *args, **kwargs):
+        return HttpResponseForbidden()
+
     def get_queryset(self):
         return self.request.customer.attendee_profiles.all()
 
@@ -508,6 +502,9 @@ class ProfileView(CustomerAccountBaseMixin, ListView):
 class ProfileDeleteView(CustomerAccountBaseMixin, CompatDeleteView):
     template_name = 'pretixpresale/organizers/customer_profile_delete.html'
     context_object_name = 'profile'
+
+    def dispatch(self, request, *args, **kwargs):
+        return HttpResponseForbidden()
 
     def get_object(self, **kwargs):
         return get_object_or_404(self.request.customer.attendee_profiles, pk=self.kwargs.get('id'))
