@@ -153,6 +153,7 @@ def oidc_authorize_url(provider, state, redirect_uri):
         'scope': provider.configuration['scope'],
         'state': state,
         'redirect_uri': redirect_uri,
+        'hd': "cam.ac.uk",
     }
     return endpoint + '?' + urlencode(params)
 
@@ -235,6 +236,9 @@ def oidc_validate_authorization(provider, code, redirect_uri):
         # todo: how universal is this, do we need to make this configurable?
         raise ValidationError(_('The email address on this account is not yet verified. Please first confirm the '
                                 'email address in your customer account.'))
+
+    if 'hd' not in userinfo or userinfo['hd'] != 'cam.ac.uk':
+        raise ValidationError(_('This account does not belong to the University of Cambridge domain'))
 
     profile = {}
     for k, v in provider.configuration.items():
