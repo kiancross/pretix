@@ -34,7 +34,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import (
     Count, IntegerField, OuterRef, Prefetch, Q, Subquery,
 )
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
@@ -557,11 +557,7 @@ class ChangeInformationView(CustomerAccountBaseMixin, FormView):
     @method_decorator(csrf_protect)
     @method_decorator(never_cache)
     def dispatch(self, request, *args, **kwargs):
-        if not request.organizer.settings.customer_accounts:
-            raise Http404('Feature not enabled')
-        if self.request.customer:
-            self.initial_email = self.request.customer.email
-        return super().dispatch(request, *args, **kwargs)
+        return HttpResponseForbidden()
 
     def get_success_url(self):
         return eventreverse(self.request.organizer, 'presale:organizer.customer.index', kwargs={})
