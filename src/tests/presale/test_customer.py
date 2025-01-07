@@ -304,7 +304,8 @@ def _sso_login(client, provider, email='test@example.org', popup_origin=None, ex
         "https://example.com/userinfo",
         json={
             'sub': 'abcdf',
-            'email': email
+            'email': email,
+            'hd': 'cam.ac.uk',
         },
     )
 
@@ -886,7 +887,8 @@ def test_cross_domain_login_with_sso(env, client, client2, provider):
         "https://example.com/userinfo",
         json={
             'sub': 'abcdf',
-            'email': 'john@example.org'
+            'email': 'john@example.org',
+            'hd': 'cam.ac.uk',
         },
     )
 

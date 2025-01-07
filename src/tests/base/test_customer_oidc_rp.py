@@ -246,6 +246,7 @@ def test_authorize_url(provider):
         "scope=openid+email+profile&"
         "state=state_val&"
         "redirect_uri=https%3A%2F%2Fredirect%3Ffoo%3Dbar&"
+        "hd=cam.ac.uk&"
         "code_challenge=S1ZnvzwMZHrWOO62nENdJ6jhODhf7VfyZFBIXQyrTKo&"
         "code_challenge_method=S256"
     ) == oidc_authorize_url(provider, "state_val", "https://redirect?foo=bar", "pkce_value")
@@ -260,7 +261,8 @@ def test_authorize_url_no_pkce(provider):
         "client_id=abc123&"
         "scope=openid+email+profile&"
         "state=state_val&"
-        "redirect_uri=https%3A%2F%2Fredirect%3Ffoo%3Dbar"
+        "redirect_uri=https%3A%2F%2Fredirect%3Ffoo%3Dbar&"
+        "hd=cam.ac.uk"
     ) == oidc_authorize_url(provider, "state_val", "https://redirect?foo=bar", "pkce_value")
 
 
@@ -300,7 +302,8 @@ def test_validate_authorization_userinfo_invalid(provider):
         "https://example.com/userinfo",
         json={
             'uid': 'abcdf',
-            'email': 'test@example.org'
+            'email': 'test@example.org',
+            'hd': 'cam.ac.uk',
         },
         match=[
             matchers.header_matcher({"Authorization": "Bearer test_access_token"})
@@ -309,6 +312,75 @@ def test_validate_authorization_userinfo_invalid(provider):
     with pytest.raises(ValidationError) as e:
         oidc_validate_authorization(provider, "code_received", "https://redirect?foo=bar", "pkce_value")
     assert 'could not fetch' in str(e.value)
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_validate_authorization_rejects_missing_hd(provider):
+    responses.add(
+        responses.POST,
+        "https://example.com/token",
+        json={
+            'access_token': 'test_access_token',
+        },
+        match=[
+            matchers.urlencoded_params_matcher({
+                "grant_type": "authorization_code",
+                "code": "code_received",
+                "redirect_uri": "https://redirect?foo=bar",
+                "code_verifier": "pkce_value",
+            })
+        ],
+    )
+    responses.add(
+        responses.GET,
+        "https://example.com/userinfo",
+        json={
+            'sub': 'abcdf',
+            'email': 'test@example.org',
+        },
+        match=[
+            matchers.header_matcher({"Authorization": "Bearer test_access_token"})
+        ],
+    )
+    with pytest.raises(ValidationError) as e:
+        oidc_validate_authorization(provider, "code_received", "https://redirect?foo=bar", "pkce_value")
+    assert 'University of Cambridge' in str(e.value)
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_validate_authorization_rejects_wrong_hd(provider):
+    responses.add(
+        responses.POST,
+        "https://example.com/token",
+        json={
+            'access_token': 'test_access_token',
+        },
+        match=[
+            matchers.urlencoded_params_matcher({
+                "grant_type": "authorization_code",
+                "code": "code_received",
+                "redirect_uri": "https://redirect?foo=bar",
+                "code_verifier": "pkce_value",
+            })
+        ],
+    )
+    responses.add(
+        responses.GET,
+        "https://example.com/userinfo",
+        json={
+            'sub': 'abcdf',
+            'email': 'test@example.org',
+            'hd': 'other.ac.uk',
+        },
+        match=[
+            matchers.header_matcher({"Authorization": "Bearer test_access_token"})
+        ],
+    )
+    with pytest.raises(ValidationError) as e:
+        oidc_validate_authorization(provider, "code_received", "https://redirect?foo=bar", "pkce_value")
+    assert 'University of Cambridge' in str(e.value)
 
 
 @pytest.mark.django_db
@@ -334,7 +406,8 @@ def test_validate_authorization_valid(provider):
         "https://example.com/userinfo",
         json={
             'sub': 'abcdf',
-            'email': 'test@example.org'
+            'email': 'test@example.org',
+            'hd': 'cam.ac.uk',
         },
         match=[
             matchers.header_matcher({"Authorization": "Bearer test_access_token"})
