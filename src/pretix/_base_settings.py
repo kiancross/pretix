@@ -85,6 +85,7 @@ CORE_MODULES = {
 
 ALL_LANGUAGES = [
     ('en', _('English')),
+    ('en-jmb', _('English (JMB Localisation)')),
     ('de', _('German')),
     ('de-informal', _('German (informal)')),
     ('ar', _('Arabic')),
