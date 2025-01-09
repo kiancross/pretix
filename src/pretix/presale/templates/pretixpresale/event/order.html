@@ -10,14 +10,7 @@
 {% load getitem %}
 {% block title %}
     {% if "thanks" in request.GET or "paid" in request.GET %}
-        {% trans "Thank you!" %}
-        {% if order.status != 'p' %}
-            {% trans "Your order has been placed successfully. See below for details." %}
-        {% elif order.total == 0 %}
-            {% trans "Your order has been processed successfully! See below for details." %}
-        {% else %}
-            {% trans "We successfully received your payment. See below for details." %}
-        {% endif %}
+        {% trans "You're going to the Jesus May Ball!" %}
     {% endif %}
     {% trans "Order details" %}
 {% endblock %}
@@ -26,7 +19,7 @@
         <div class="thank-you">
             <span class="fa fa-check-circle" aria-hidden="true"></span>
 
-            <h2 class="h1">{% trans "Thank you!" %}</h2>
+            <h2 class="h1">{% trans "You're going to the Jesus May Ball!" %}</h2>
             {% if order.status != 'p' %}
                 <p class="lead">
                     {% trans "Your order has been placed successfully. See below for details." %}<br>

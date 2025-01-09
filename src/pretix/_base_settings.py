@@ -118,6 +118,7 @@ ALL_LANGUAGES = [
     ('es-419', _('Spanish (Latin America)')),
     ('tr', _('Turkish')),
     ('uk', _('Ukrainian')),
+    ('en-jmb', _('English (JMB Localisation)')),
 ]
 LANGUAGES_OFFICIAL = {
     'en', 'de', 'de-informal'

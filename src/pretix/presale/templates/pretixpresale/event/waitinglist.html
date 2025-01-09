@@ -15,6 +15,32 @@
                     </div>
                 </div>
             {% endif %}
+            <div class="alert alert-info">
+              <h4>Waiting list eligibility</h4>
+                <div>
+                  <p>
+                    Only Jesus College members and current University of Cambridge students
+                    may join the waiting list.
+                  </p>
+                </div>
+
+                <ul>
+                  <li>
+                    <p>
+                      <strong>Jesus College students:</strong> sign in first, then select a
+                      product under the <strong>"Jesus College"</strong> group.
+                      Do not select a "University of Cambridge" product.
+                    </p>
+                  </li>
+                  <li>
+                    <p>
+                      <strong>Other Jesus College members</strong> (staff, fellows, alumni) and
+                      <strong>other University of Cambridge students:</strong> select a
+                      product under the <strong>"University of Cambridge"</strong> group.
+                    </p>
+                  </li>
+                </ul>
+            </div>
             {% bootstrap_form form layout="checkout" %}
             <div class="form-group">
                 <div class="col-md-9 col-md-offset-3">
@@ -22,17 +48,6 @@
                         {% blocktrans trimmed with hours=event.settings.waiting_list_hours %}
                             If tickets become available again, we will inform the first persons on the waiting list. If we notify you, you'll have {{ hours }} hours time to buy a ticket until we assign it to the next person on the list.
                         {% endblocktrans %}
-                    </p>
-                    <p class="help-block">
-                        {% if event.settings.waiting_list_limit_per_user > 1 %}
-                            {% blocktrans trimmed %}
-                                Note that you will only receive one ticket. If you need multiple tickets, you need to add yourself to the waiting list multiple times. There is no guarantee that you will receive a certain number of tickets.
-                            {% endblocktrans %}
-                        {% else %}
-                            {% blocktrans trimmed %}
-                                Note that you will only receive one ticket. If you need multiple tickets, you need to add yourself to the waiting list multiple times with different email addresses. There is no guarantee that you will receive a certain number of tickets.
-                            {% endblocktrans %}
-                        {% endif %}
                     </p>
                     <p class="help-block" id="add-to-list-description">
                         {% blocktrans trimmed %}
