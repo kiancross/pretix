@@ -6,6 +6,10 @@
         {{ event.settings.voucher_explanation_text|rich_text }}
     </div>
 {% endif %}
+<p>
+  Redeem your <a href="https://help.jesusmayball.com/accessing-right-to-buy-codes/" target="_blank">right-to-buy</a>,
+  <a href="https://help.jesusmayball.com/ticket-transfer/" target="_blank">ticket transfer</a>, and discount codes here.
+</p>
 <form method="get" action="{% eventurl event "presale:event.redeem" cart_namespace=cart_namespace %}">
     <div class="row row-voucher">
         <div class="col-md-8 col-sm-6 col-xs-12">

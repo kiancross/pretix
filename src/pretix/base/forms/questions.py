@@ -679,6 +679,7 @@ class BaseQuestionsForm(forms.Form):
                 scheme=event.settings.name_scheme,
                 titles=event.settings.name_scheme_titles,
                 label=_('Attendee name'),
+                help_text=_("Please ensure that the name provided matches your full legal name as it appears on your photographic ID. If it doesn't, and you're unable to modify it here, please contact us after purchasing your ticket."),
                 initial=(cartpos.attendee_name_parts if cartpos else orderpos.attendee_name_parts),
             )
         if item.ask_attendee_data and event.settings.attendee_emails_asked:
