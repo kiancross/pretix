@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU Affero General Public License along with this program.  If not, see
 # <https://www.gnu.org/licenses/>.
 #
+import logging
 import hashlib
 import re
 from importlib import import_module
@@ -644,6 +645,24 @@ class ConfirmChangeView(View):
     def get_success_url(self):
         return eventreverse(self.request.organizer, 'presale:organizer.customer.index', kwargs={})
 
+def _cookie_diag(request):
+    name = settings.SESSION_COOKIE_NAME
+    raw = request.META.get("HTTP_COOKIE", "") or ""
+
+    return {
+        "cookie_name": name,
+        "raw": raw,
+    }
+
+def _nav_diag(request):
+    return {
+        "ua": (request.META.get("HTTP_USER_AGENT", "")),
+        "referer": (request.META.get("HTTP_REFERER", "")),
+        "GET": str(request.GET),
+        "sec_fetch_site": request.META.get("HTTP_SEC_FETCH_SITE"),
+        "sec_fetch_mode": request.META.get("HTTP_SEC_FETCH_MODE"),
+        "sec_fetch_dest": request.META.get("HTTP_SEC_FETCH_DEST"),
+    }
 
 class SSOLoginView(RedirectBackMixin, View):
     """
@@ -686,6 +705,9 @@ class SSOLoginView(RedirectBackMixin, View):
                 popup_origin = None
 
         nonce = get_random_string(32)
+        rstring = get_random_string(6)
+        rstring1 = get_random_string(6)
+        rstring2 = get_random_string(6)
         pkce_code_verifier = get_random_string(64)
         request.session[f'pretix_customerauth_{self.provider.pk}_pkce_code_verifier'] = pkce_code_verifier
         request.session[f'pretix_customerauth_{self.provider.pk}_nonce'] = nonce
@@ -694,9 +716,42 @@ class SSOLoginView(RedirectBackMixin, View):
         redirect_uri = build_absolute_uri(self.request.organizer, 'presale:organizer.customer.login.return', kwargs={
             'provider': self.provider.pk
         })
+        logging.warning(f"SSOLoginView {request.session.session_key} {nonce} {next_url} {rstring} {rstring1} {rstring2} {_nav_diag(request)} {_cookie_diag(request)}")
 
         if self.provider.method == "oidc":
-            return redirect_to_url(oidc_authorize_url(self.provider, f'{nonce}%{next_url}', redirect_uri, pkce_code_verifier))
+            r = redirect_to_url(oidc_authorize_url(self.provider, f'{nonce}%{next_url}', redirect_uri, pkce_code_verifier))
+
+            r.set_cookie(
+                    "__Host-pretix_diag",
+                    rstring,
+                    max_age=300,
+                    path="/",
+                    secure=True,
+                    httponly=True,
+                    samesite="Lax",
+            )
+            r.set_cookie(
+                    "__Host-pretix_another_diag",
+                    rstring1,
+                    max_age=300,
+                    path="/",
+                    secure=True,
+                    httponly=True,
+                    samesite="None",
+            )
+            r.set_cookie(
+                    "__Host-pretix_another_part_diag",
+                    rstring2,
+                    max_age=300,
+                    path="/",
+                    secure=True,
+                    httponly=True,
+                    samesite="None",
+            )
+            r.cookies["__Host-pretix_another_part_diag"]['Partitioned'] = True
+
+
+            return r
         else:
             raise Http404("Unknown SSO method.")
 
@@ -758,7 +813,41 @@ class SSOLoginReturnView(RedirectBackMixin, View):
 
             nonce, redirect_to = re.split("[%#§]", request.GET['state'], maxsplit=1)  # Allow § and # for backwards-compatibility for a while
 
-            if nonce != request.session.get(f'pretix_customerauth_{self.provider.pk}_nonce'):
+            expected = request.session.get(f'pretix_customerauth_{self.provider.pk}_nonce')
+
+            logging.warning(f"SSOLoginReturnView {request.session.session_key} {nonce} {redirect_to} {_nav_diag(request)} {_cookie_diag(request)}")
+
+            if nonce != expected:
+                if settings.SENTRY_ENABLED:
+                    import sentry_sdk
+
+                    with sentry_sdk.push_scope() as scope:
+                        sentry_sdk.add_breadcrumb(category="auth", message="Validating nonce", level="info")
+
+                        scope.set_context("nonce", {
+                            "actual": nonce,
+                            "expected": expected,
+                        })
+
+                        scope.set_context("request_bits", {
+                            "path": request.path,
+                            "method": request.method,
+                            "query_keys": sorted(list(request.GET.keys())),
+                            "session_key_present": bool(getattr(request.session, "session_key", None)),
+                            "redirect_to": redirect_to,  # if this can include full URLs, consider truncating too
+                        })
+
+                        scope.set_context("provider", {"pk": self.provider.pk})
+
+                        raw_state = request.GET.get("state", "")
+                        scope.set_extra("state_len", len(raw_state))
+                        scope.set_extra("state", raw_state)
+
+                        try:
+                            raise RuntimeError("Invalid one-time token (nonce mismatch)")
+                        except RuntimeError as e:
+                            sentry_sdk.capture_exception(e)
+
                 return self._fail(
                     mark_safe(render_to_string("pretixpresale/organizers/customer_login_interrupted_message.html")),
                     popup_origin,
@@ -907,6 +996,7 @@ class SSOLoginReturnView(RedirectBackMixin, View):
             return redirect_to_url(self.get_success_url(redirect_to))
 
     def _fail(self, message, popup_origin):
+        logging.warning(f"SSOLoginReturnViewFail Failing with {message[:200]} {popup_origin}")
         if not popup_origin:
             messages.error(
                 self.request,
