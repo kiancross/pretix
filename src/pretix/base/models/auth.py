@@ -348,7 +348,8 @@ class User(AbstractBaseUser, PermissionsMixin, LoggingMixin):
                 {
                     'user': self,
                     'messages': msg,
-                    'url': build_absolute_uri('control:user.settings')
+                    'url': build_absolute_uri('control:user.settings'),
+                    'instance': settings.PRETIX_INSTANCE_NAME,
                 },
                 event=None,
                 user=self,
@@ -395,6 +396,7 @@ class User(AbstractBaseUser, PermissionsMixin, LoggingMixin):
                 'user': self,
                 'reason': msg,
                 'code': code,
+                'instance': settings.PRETIX_INSTANCE_NAME,
             },
             event=None,
             user=self,
@@ -434,6 +436,7 @@ class User(AbstractBaseUser, PermissionsMixin, LoggingMixin):
         mail(
             self.email, _('Password recovery'), 'pretixcontrol/email/forgot.txt',
             {
+                'instance': settings.PRETIX_INSTANCE_NAME,
                 'user': self,
                 'url': (build_absolute_uri('control:auth.forgot.recover')
                         + '?id=%d&token=%s' % (self.id, default_token_generator.make_token(self)))

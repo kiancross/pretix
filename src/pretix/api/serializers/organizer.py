@@ -366,9 +366,10 @@ class TeamInviteSerializer(serializers.ModelSerializer):
         try:
             mail(
                 instance.email,
-                _('pretix account invitation'),
+                _('Account invitation'),
                 'pretixcontrol/email/invitation.txt',
                 {
+                    'instance': settings.PRETIX_INSTANCE_NAME,
                     'user': self,
                     'organizer': self.context['organizer'].name,
                     'team': instance.team.name,
