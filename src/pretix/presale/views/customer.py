@@ -692,7 +692,6 @@ class SSOLoginView(RedirectBackMixin, View):
         redirect_uri = build_absolute_uri(self.request.organizer, 'presale:organizer.customer.login.return', kwargs={
             'provider': self.provider.pk
         })
-
         if self.provider.method == "oidc":
             return redirect_to_url(oidc_authorize_url(self.provider, f'{nonce}%{next_url}', redirect_uri, pkce_code_verifier))
         else:
@@ -756,7 +755,24 @@ class SSOLoginReturnView(RedirectBackMixin, View):
 
             nonce, redirect_to = re.split("[%#§]", request.GET['state'], maxsplit=1)  # Allow § and # for backwards-compatibility for a while
 
-            if nonce != request.session.get(f'pretix_customerauth_{self.provider.pk}_nonce'):
+            expected = request.session.get(f'pretix_customerauth_{self.provider.pk}_nonce')
+
+            if nonce != expected:
+                if settings.SENTRY_ENABLED:
+                    import sentry_sdk
+
+                    with sentry_sdk.push_scope() as scope:
+                        scope.set_context("nonce", {
+                            "actual": nonce,
+                            "expected": expected,
+                        })
+                        scope.set_extra("redirect_to", redirect_to)
+
+                        try:
+                            raise RuntimeError("Invalid one-time token (nonce mismatch)")
+                        except RuntimeError as e:
+                            sentry_sdk.capture_exception(e)
+
                 return self._fail(
                     _('Login was not successful. Error message: "{error}".').format(
                         error='invalid one-time token',
