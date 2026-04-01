@@ -88,6 +88,7 @@
                         <span class="fa fa-list"></span>
                         {% trans "View transaction history" %}
                     </a>
+                    {% eventsignal event "pretix.control.signals.order_detail_top_buttons" order=order request=request %}
                 </div>
             </div>
         </form>

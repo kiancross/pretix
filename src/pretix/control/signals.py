@@ -271,6 +271,23 @@ As with all event plugin signals, the ``sender`` keyword argument will contain t
 Additionally, the argument ``order`` and ``request`` are available.
 """
 
+order_detail_top_buttons = EventPluginSignal()
+"""
+Arguments: ``order``, ``request``
+
+This signal is sent out to display additional buttons in the toolbar at the top of the
+order detail page, inline with the built-in action buttons (e.g. "Mark as paid",
+"View email history"). You are expected to return HTML for one or more button elements.
+
+Note: the toolbar is inside a write-permission check, consistent with pretix's existing
+pattern where read-only buttons (e.g. "View email history", "View transaction history")
+are also gated behind write access. This signal is therefore only sent for users with
+write permission on orders.
+
+As with all event plugin signals, the ``sender`` keyword argument will contain the event.
+Additionally, the arguments ``order`` and ``request`` are available.
+"""
+
 nav_event_settings = EventPluginSignal()
 """
 Arguments: 'request'
