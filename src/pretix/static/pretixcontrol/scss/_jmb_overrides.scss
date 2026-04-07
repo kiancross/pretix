@@ -1,0 +1,2376 @@
+// JMB visual overrides - CSS-only facelift
+// Loaded last to override default pretix styles
+
+// Brand colour functions and variables
+@function jmb-tint($color, $percentage) {
+  @return mix(white, $color, $percentage);
+}
+@function jmb-shade($color, $percentage) {
+  @return mix(black, $color, $percentage);
+}
+
+$jmb-primary: #3b6296;
+$jmb-success: #408252;
+$jmb-info: #5f9cd4;
+$jmb-warning: #ffb419;
+$jmb-danger: #c44f4f;
+
+// Font - Geist (self-hosted, absolute paths to avoid CACHE directory issues)
+@each $weight in 300, 400, 500, 600 {
+  @font-face {
+    font-family: 'Geist';
+    font-weight: $weight;
+    font-style: normal;
+    font-display: swap;
+    src: url('/static/pretixcontrol/fonts/geist-#{$weight}.woff2') format('woff2');
+  }
+}
+
+body {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.55;
+  color: #333;
+}
+
+// ── Focus outlines ─────────────────────────────────────
+// Remove the ugly default outline on mouse click, but keep it
+// for keyboard navigation (accessibility).
+:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+// ── Typography ──────────────────────────────────────────
+
+h1, h2, h3, h4, h5, h6 {
+  color: #2a2a2a;
+  font-weight: 500;
+}
+
+h1 { font-size: 28px; margin-bottom: 16px; }
+h2 { font-size: 22px; margin-top: 24px; }
+h3 { font-size: 18px; margin-top: 20px; }
+h4 { margin-top: 20px; }
+
+legend {
+  margin-bottom: 14px;
+}
+
+.text-muted { color: #888; }
+
+.help-block {
+  color: #999;
+  font-size: 0.92em;
+
+  // Action links inside help text (e.g. "Change email address")
+  > a:only-child {
+    display: inline-block;
+    padding: 4px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    color: #555;
+    font-size: 1em;
+    text-decoration: none;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+
+    &:hover, &:focus {
+      color: var(--pretix-brand-primary);
+      border-color: #ccc;
+      background-color: #f8f8f8;
+      text-decoration: none;
+    }
+
+    .fa { margin-right: 2px; color: #999; }
+  }
+}
+
+a {
+  color: var(--pretix-brand-primary);
+  &:hover, &:focus { color: var(--pretix-brand-primary-darken-10); }
+}
+
+// ── Panels ──────────────────────────────────────────────
+
+.panel {
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  margin-bottom: 20px;
+}
+
+.panel-default > .panel-heading {
+  background: #fafafa;
+  border-bottom-color: #e0e0e0;
+}
+
+.panel-primary,
+.panel-success,
+.panel-warning,
+.panel-danger,
+.panel-info {
+  border: 1px solid #e0e0e0;
+
+  > .panel-heading {
+    background-image: none;
+    text-shadow: none;
+    border-bottom: 1px solid #e0e0e0;
+    color: #333;
+  }
+}
+
+.panel-primary > .panel-heading {
+  background-color: var(--pretix-brand-primary-tint-90);
+}
+.panel-success > .panel-heading {
+  background-color: #f0f7f2;
+}
+.panel-warning > .panel-heading {
+  background-color: #fff8ea;
+}
+.panel-danger > .panel-heading {
+  background-color: #fdf4f4;
+}
+.panel-info > .panel-heading {
+  background-color: #f0f6fb;
+}
+
+.panel-footer {
+  background-color: transparent;
+  border-top-color: #eee;
+}
+
+.panel-group {
+  .panel {
+    border-radius: 4px;
+    + .panel { margin-top: 8px; }
+  }
+  .panel-heading + .panel-collapse > .panel-body {
+    border-top-color: #e8e8e8;
+  }
+}
+
+// ── Buttons ─────────────────────────────────────────────
+
+.btn {
+  border-radius: 4px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-default {
+  border-color: #d0d0d0;
+
+  &:hover, &:focus {
+    border-color: #b0b0b0;
+    background-color: #f5f5f5;
+  }
+
+  &:active,
+  &.active,
+  .open > &.dropdown-toggle {
+    background-color: #f5f5f5;
+    border-color: #c0c0c0;
+    box-shadow: none;
+    color: #333;
+  }
+}
+
+// Small pill buttons following text -- gap before first, not between consecutive
+td > .btn-xs,
+dd > .btn-xs {
+  margin-left: 4px;
+
+  + .btn-xs {
+    margin-left: 0;
+  }
+}
+
+.btn-lg {
+  padding: 8px 16px;
+  font-size: 16px;
+}
+
+// ── Button groups ───────────────────────────────────────
+
+.btn-group > .btn + .btn {
+  border-left-color: rgba(0, 0, 0, 0.1);
+}
+
+// Single button or single dropdown toggle
+.btn-group > .btn:only-child,
+.btn-group > .dropdown-toggle:only-child,
+.btn-group > .btn:first-child.dropdown-toggle {
+  border-radius: 4px;
+}
+
+// Multi-button groups
+.btn-group > .btn:first-child:not(:only-child):not(.dropdown-toggle) {
+  border-radius: 6px 0 0 6px;
+}
+
+.btn-group > .btn:last-child:not(:only-child):not(.dropdown-toggle),
+.btn-group > .dropdown-toggle:not(:first-child) {
+  border-radius: 0 6px 6px 0;
+}
+
+// ── Labels/badges ───────────────────────────────────────
+
+.label {
+  border-radius: 4px;
+  font-weight: 600;
+  padding: 4px 8px;
+}
+
+.label-success { background-color: var(--pretix-brand-success); }
+.label-warning { background-color: var(--pretix-brand-warning); }
+.label-danger  { background-color: var(--pretix-brand-danger); }
+.label-info    { background-color: var(--pretix-brand-info); }
+.label-default { background-color: #999; }
+
+// ── Tables ──────────────────────────────────────────────
+
+.table {
+  > thead,
+  > tbody,
+  > tfoot {
+    > tr > th,
+    > tr > td {
+      border-top-color: #eee;
+    }
+  }
+
+  // Header rows
+  > thead > tr > th {
+    background-color: transparent;
+    color: #888;
+    font-weight: 400;
+    font-size: 0.85em;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  > thead > tr:first-child > th {
+    border-bottom: 1px solid #ddd;
+  }
+
+  > thead > tr + tr > th {
+    border-bottom: 1px solid #e8e8e8;
+  }
+
+  // Sort arrows - softer icon, more spacing from text
+  > thead > tr > th > a:has(> .fa-caret-up, > .fa-caret-down) {
+    color: #bbb;
+    text-decoration: none;
+    margin-left: 1px;
+    transition: color 0.12s ease;
+
+    &:hover { color: #999; }
+
+    + a { margin-left: -1px; }
+  }
+
+  > thead > tr > th > a > .fa-caret-up,
+  > thead > tr > th > a > .fa-caret-down {
+    font-size: 0.8em;
+
+    &::before { content: "\f077"; } // fa-chevron-up
+  }
+
+  > thead > tr > th > a > .fa-caret-down::before {
+    content: "\f078"; // fa-chevron-down
+  }
+
+  // Darken header/footer separator when table has multiple rows
+  &:has(> tbody > tr + tr) > thead > tr:first-child > th {
+    border-bottom-color: #ccc;
+  }
+  &:has(> tbody > tr + tr) > tfoot > tr > td,
+  &:has(> tbody > tr + tr) > tfoot > tr > th {
+    border-top-color: #ccc;
+  }
+
+  // Category/group header rows in tbody (overview table has its own rules)
+  &:not(.table-product-overview) > tbody > tr > th {
+    background-color: transparent;
+    color: #555;
+    font-weight: 500;
+    font-size: 0.82em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-top: none;
+    border-bottom: 1px solid #e8e8e8;
+    padding-top: 28px;
+    padding-bottom: 8px;
+  }
+
+  // First visible group header sits close to thead (no extra gap).
+  // Products page has an empty tbody before the first real category;
+  // other pages may have the group header directly after thead.
+  > tbody:not(:has(tr)) + tbody > tr:first-child > th,
+  > thead + tbody:has(tr > th) > tr:first-child > th {
+    padding-top: 10px;
+  }
+
+  // Collapse empty tbodies (e.g. uncategorised product placeholder)
+  > tbody:not(:has(tr)) {
+    display: none;
+  }
+
+  > thead > tr > th,
+  > tbody > tr > td {
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+
+  // Remove double border between thead and first tbody row
+  > thead + tbody > tr:first-child > th,
+  > thead + tbody > tr:first-child > td {
+    border-top: none;
+  }
+}
+
+// Footer rows
+.table > tfoot > tr > td,
+.table > tfoot > tr > th {
+  border-top: 1px solid #ddd;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.table-hover > tbody > tr:hover {
+  background-color: #f8f9fa;
+}
+
+// Don't highlight group header rows on hover
+.table-hover > tbody > tr:has(> th):hover {
+  background-color: transparent;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: transparent;
+}
+
+// Tables inside panels - lighter borders since the panel provides containment
+.panel > .table,
+.panel > .table-responsive > .table,
+.panel > .panel-body > .table-responsive > .table {
+  > thead > tr > th {
+    border-top: none;
+    border-bottom-width: 1px;
+    border-bottom-color: #e8e8e8;
+  }
+
+  > thead > tr > th,
+  > tbody > tr > th,
+  > tbody > tr > td {
+    border-top-color: #f0f0f0;
+  }
+}
+
+// Remove double border at first row inside panels
+.panel > .panel-body > .table,
+.panel > .table,
+.panel > .table-responsive > .table {
+  > thead:first-child > tr:first-child > th,
+  > tbody:first-child > tr:first-child > td,
+  > tbody:first-child > tr:first-child > th {
+    border-top: none;
+  }
+}
+
+// Standalone tables - subtle shadow lift
+.table-responsive:not(.panel .table-responsive):not(.panel-body),
+.table:not(.panel .table):not(.table-responsive .table) {
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.table-responsive:not(.panel .table-responsive):not(.panel-body) > .table {
+  margin-bottom: 0;
+}
+
+// Table action buttons
+.table .col-actions,
+.table .action-col-2 {
+  .btn-sm, .btn-xs {
+    border-radius: 6px;
+    padding: 5px 8px;
+    border-color: #ddd;
+    margin-left: 2px;
+
+    &.btn-danger { border-color: transparent; }
+  }
+}
+
+// ── Events list table ───────────────────────────────────
+
+.event-date-col {
+  white-space: nowrap;
+  font-size: 0.92em;
+  color: #555;
+  line-height: 1.6;
+}
+
+.quotabox {
+  width: 56px;
+  margin-right: 4px;
+
+  .progress {
+    height: 5px;
+    border-radius: 3px;
+    margin-bottom: 3px;
+    background-color: #eee;
+  }
+
+  .numbers {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &:hover {
+    text-decoration: none;
+  }
+}
+
+.quotabox-more {
+  font-size: 18px;
+  color: #aaa;
+  vertical-align: middle;
+  margin-top: 0;
+  line-height: 1;
+  letter-spacing: 1px;
+
+  &:hover {
+    color: #666;
+  }
+}
+
+// ── Alerts ──────────────────────────────────────────────
+
+.alert {
+  border-radius: 4px;
+  border-width: 1px;
+
+  .btn {
+    display: block;
+    margin-top: 0.5em;
+    width: fit-content;
+    opacity: 0.88;
+    &:hover, &:focus { opacity: 1; }
+  }
+}
+
+// Buttons following a line break need breathing room
+br + .btn {
+  margin-top: 0.5em;
+}
+
+.alert-success {
+  background-color: #{jmb-tint($jmb-success, 90%)};
+  border-color: #{jmb-tint($jmb-success, 70%)};
+  color: #{darken($jmb-success, 15%)};
+}
+
+.alert-info {
+  background-color: #{jmb-tint($jmb-info, 90%)};
+  border-color: #{jmb-tint($jmb-info, 70%)};
+  color: #{darken($jmb-info, 20%)};
+}
+
+.alert-warning {
+  background-color: #{jmb-tint($jmb-warning, 88%)};
+  border-color: #{jmb-tint($jmb-warning, 65%)};
+  color: #{darken($jmb-warning, 30%)};
+}
+
+.alert-danger {
+  background-color: #{jmb-tint($jmb-danger, 90%)};
+  border-color: #{jmb-tint($jmb-danger, 70%)};
+  color: #{darken($jmb-danger, 15%)};
+}
+
+// Soften the icon strip (::before pseudo-element from pretix base theme)
+.alert-success::before { background-color: #{jmb-tint($jmb-success, 30%)}; }
+.alert-info::before    { background-color: #{jmb-tint($jmb-info, 30%)}; }
+.alert-warning::before { background-color: #{jmb-tint($jmb-warning, 30%)}; }
+.alert-danger::before  { background-color: #{jmb-tint($jmb-danger, 30%)}; }
+
+// ── Forms ───────────────────────────────────────────────
+
+.form-control {
+  border-radius: 4px;
+  border-color: #ced4da;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus {
+    border-color: var(--pretix-brand-primary);
+  }
+}
+
+select.form-control {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23888' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  padding-right: 30px;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--pretix-brand-primary);
+}
+
+.checkbox label,
+.radio label {
+  color: #444;
+}
+
+input[type="file"] {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 0.95em;
+  color: #555;
+  background-color: #fff;
+  border: 2px dashed #d0d0d0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+
+  &:hover {
+    border-color: #aaa;
+    background-color: #fafafa;
+  }
+
+  &:focus {
+    border-color: var(--pretix-brand-primary);
+    outline: none;
+  }
+
+  &::file-selector-button {
+    padding: 6px 16px;
+    margin-right: 12px;
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    background-color: #f5f5f5;
+    color: #444;
+    font-size: 0.92em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+
+    &:hover {
+      background-color: #eee;
+      border-color: #b0b0b0;
+    }
+  }
+}
+
+// File upload widget (thumbnailed_file_input) - CSS-only styling
+.bootstrap3-multi-input .col-xs-12:has(a[data-lightbox]) {
+  padding: 12px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  margin-bottom: 4px;
+
+  // Mute bare text labels ("Currently:", "Change:")
+  color: #888;
+
+  // Filename pill -- RTL truncation keeps the file extension visible
+  > a:first-of-type {
+    display: inline-block;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+    direction: rtl;
+    text-align: left;
+    padding: 2px 10px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: #555;
+    text-decoration: none;
+
+    &:hover { border-color: #ccc; color: var(--pretix-brand-primary); }
+  }
+
+  // Thumbnail preview
+  a[data-lightbox] {
+    display: inline-block;
+    margin: 8px 0;
+
+    &:hover { opacity: 0.9; }
+
+    img { display: block; border-radius: 4px; border: 1px solid #e0e0e0; }
+  }
+
+  // Clear toggle -- checkbox hidden, label is the click target
+  input[id$="-clear_id"] {
+    display: none;
+
+    + label {
+      float: right;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      font-size: 0.85em;
+      color: $jmb-danger;
+      border: 1px solid #{jmb-tint($jmb-danger, 60%)};
+      border-radius: 4px;
+      background: #{jmb-tint($jmb-danger, 92%)};
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+
+      &:hover { background: #{jmb-tint($jmb-danger, 85%)}; border-color: #{jmb-tint($jmb-danger, 40%)}; }
+      &::before { content: "\f00d"; font-family: "FontAwesome"; font-size: 0.9em; }
+    }
+
+    &:checked + label {
+      background: $jmb-danger;
+      border-color: #{darken($jmb-danger, 10%)};
+      color: #fff;
+
+      &::before { content: "\f00c"; }
+    }
+  }
+}
+
+// Disabled / readonly fields
+.form-control[disabled],
+.form-control[readonly],
+fieldset[disabled] .form-control {
+  background-color: #f8f8f8;
+  border-color: #e8e8e8;
+  color: #999;
+  cursor: not-allowed;
+}
+
+// Static form rows (settings pages: links for password, 2FA, etc.)
+.static-form-row {
+  a {
+    display: inline-block;
+    padding: 4px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    color: #555;
+    text-decoration: none;
+    font-size: 0.92em;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+
+    &:hover, &:focus {
+      color: var(--pretix-brand-primary);
+      border-color: #ccc;
+      background-color: #f8f8f8;
+      text-decoration: none;
+    }
+
+    .fa {
+      margin-right: 2px;
+      color: #999;
+    }
+  }
+}
+
+.input-group .form-control:first-child { border-radius: 6px 0 0 6px; }
+.input-group .form-control:last-child,
+.input-group-btn:last-child > .btn     { border-radius: 0 6px 6px 0; }
+.input-group-btn:first-child > .btn    { border-radius: 6px 0 0 6px; }
+
+.input-group-addon {
+  background-color: #f5f5f5;
+  border-color: #ced4da;
+  border-radius: 4px;
+  color: #555;
+}
+
+.submit-group {
+  background: transparent !important;
+  border-top: 1px solid #eee;
+
+  .btn-save,
+  .btn-cancel,
+  .btn-alternative {
+    padding: 8px 16px;
+    font-size: 16px;
+  }
+}
+
+// ── Navigation ──────────────────────────────────────────
+
+.navbar-inverse {
+  background-color: var(--pretix-brand-primary-shade-42);
+  border: none;
+
+  #button-shop, #button-sudo,
+  .btn-link {
+    color: #fff;
+    &:hover, &:focus { color: rgba(255, 255, 255, 0.85); }
+  }
+
+  .navbar-brand {
+    &:hover, &:focus { opacity: 0.9; }
+  }
+}
+
+.navbar-top-links li a {
+  transition: opacity 0.15s ease;
+  &:hover, &:focus { opacity: 0.85; }
+}
+
+.navbar-default.sidebar {
+  background: #fff;
+}
+
+// Override purple icon colour baked in from $navbar-inverse-bg
+.sidebar-nav li > a > .fa {
+  color: inherit;
+}
+
+.sidebar ul li {
+  border-bottom-color: #f0f0f0;
+
+  a {
+    color: #444;
+    padding-top: 11px;
+    padding-bottom: 11px;
+    transition: background-color 0.12s ease, color 0.12s ease;
+
+    &:hover, &:focus {
+      background-color: #f8f8f8;
+      color: #222;
+    }
+
+    &.active {
+      background-color: var(--pretix-brand-primary-tint-90);
+      color: var(--pretix-brand-primary);
+      font-weight: 600;
+      border-right: 3px solid var(--pretix-brand-primary);
+    }
+  }
+}
+
+.sidebar .nav-second-level li a {
+  font-size: 0.93em;
+  color: #666;
+
+  &.active {
+    color: var(--pretix-brand-primary);
+    background-color: var(--pretix-brand-primary-tint-90);
+    font-weight: 600;
+  }
+
+  &:hover { color: #333; }
+}
+
+.sidebar .context-selector {
+  border-bottom-color: #e8e8e8;
+
+  a {
+    transition: background-color 0.12s ease;
+    &:hover, &:focus { background-color: #f8f8f8; }
+  }
+
+  // Lighten and align the stacked icon
+  .fa-stack {
+    .fa-circle { color: var(--pretix-brand-primary-lighten-20); }
+    .fa-inverse { color: #fff; }
+  }
+
+  > a > .fa-stack {
+    vertical-align: middle;
+  }
+
+  .context-indicator {
+    span { width: 175px; }
+
+    .context-name {
+      color: #333;
+      font-weight: 600;
+      font-size: 0.95em;
+    }
+
+    .context-meta {
+      opacity: 1;
+      color: #888;
+      font-size: 11.5px;
+    }
+  }
+
+  // Caret -- more visible
+  .caret {
+    border-top-color: #999;
+  }
+
+  // Open state feedback
+  &.open > a {
+    background-color: #f0f0f0;
+
+    .caret { border-top-color: #666; }
+  }
+}
+
+@media (min-width: 768px) {
+  #page-wrapper { border-left-color: #eee; }
+}
+
+// ── Dropdowns ───────────────────────────────────────────
+
+.dropdown-menu {
+  border-color: #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+
+  > li > a,
+  > li > .btn {
+    padding: 8px 10px;
+    color: #444;
+    border-radius: 4px;
+    transition: background-color 0.1s ease;
+
+    &:hover, &:focus {
+      background-color: #f5f5f5;
+      color: #222;
+    }
+  }
+
+  > li > .btn,
+  > li > button.btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    font-weight: 400;
+    padding: 8px 10px;
+  }
+
+  .fa {
+    margin-right: 4px;
+  }
+
+  .divider {
+    background-color: #eee;
+    margin: 4px 8px;
+  }
+}
+
+// Event switcher dropdown
+ul.event-dropdown {
+  padding: 6px !important;
+  min-width: 260px;
+
+  // Search input
+  .query-holder .form-box {
+    padding: 0 0 4px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 4px;
+
+    .form-control {
+      height: 34px;
+      font-size: 0.9em;
+      border-color: #ddd;
+      background: #f8f9fa url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23999' stroke-width='1.5'%3e%3ccircle cx='6.5' cy='6.5' r='4.5'/%3e%3cline x1='10' y1='10' x2='14' y2='14'/%3e%3c/svg%3e") no-repeat 8px center / 14px;
+      padding-left: 28px;
+
+      &:focus { background-color: #fff; }
+    }
+  }
+
+  // Event list items (structure: li > a > div > span)
+  > li:not(.query-holder) > a {
+    padding: 8px 10px !important;
+    margin-bottom: 1px;
+    border-radius: 4px;
+
+    .event-name-full {
+      font-weight: 400;
+      font-size: 0.93em;
+      color: #333;
+      margin-bottom: 1px;
+    }
+
+    .event-organizer,
+    .event-daterange {
+      font-size: 0.8em;
+      color: #777;
+    }
+
+    // Mute user/users icons (calendar already muted by upstream)
+    .event-name-full > .fa-fw { opacity: 0.65; }
+  }
+
+  // Top-level items (user/organizer, no date range)
+  > li:not(.query-holder) > a:not(:has(.event-daterange)) .event-name-full {
+    font-size: 0.9em;
+  }
+
+  // Events (have a date range) -- indent under their organizer
+  // and hide the redundant organizer name (already shown above)
+  > li:not(.query-holder) > a:has(.event-daterange) {
+    margin-left: 12px;
+
+    .event-organizer { display: none; }
+  }
+
+  // Keyboard-navigation active state -- subtle highlight instead of
+  // solid brand block. Upstream sets .active { background; color }
+  // and .active a, .active .event-daterange { color: white }.
+  .active {
+    background: transparent !important;
+    color: inherit !important;
+  }
+
+  .active > a {
+    background: var(--pretix-brand-primary-tint-90) !important;
+    color: var(--pretix-brand-primary) !important;
+  }
+
+  .active .event-name-full {
+    color: var(--pretix-brand-primary) !important;
+  }
+
+  .active .event-daterange,
+  .active .event-organizer {
+    color: var(--pretix-brand-primary-lighten-5) !important;
+  }
+
+  .loading {
+    color: #bbb;
+    font-size: 0.85em;
+  }
+}
+
+// ── Modals ──────────────────────────────────────────────
+
+body:has(dialog[open].modal-card) {
+  overflow: hidden;
+}
+
+.modal-content {
+  border: none;
+  border-radius: 6px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.modal-header {
+  border-bottom-color: #eee;
+
+  .close {
+    opacity: 0.4;
+    transition: opacity 0.12s ease;
+    &:hover { opacity: 0.7; }
+  }
+}
+
+.modal-footer {
+  border-top-color: #eee;
+}
+
+// ── Tabs & pills ────────────────────────────────────────
+
+.nav-tabs {
+  border-bottom: 1px solid #e0e0e0;
+
+  > li {
+    > a {
+      border-radius: 4px 4px 0 0;
+      color: #666;
+      padding: 9px 15px;
+      transition: color 0.12s ease, background-color 0.12s ease;
+
+      &:hover, &:focus {
+        background-color: #f5f5f5;
+        color: #333;
+      }
+    }
+
+    &.active > a {
+      &, &:hover, &:focus {
+        border-color: #e0e0e0 #e0e0e0 transparent;
+        box-shadow: inset 0 -2px 0 var(--pretix-brand-primary);
+        color: var(--pretix-brand-primary);
+        font-weight: 600;
+        background: #fff;
+      }
+    }
+  }
+}
+
+.tab-content {
+  border: 1px solid #e0e0e0;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  padding: 8px 8px 0 8px;
+}
+
+.nav-pills > li {
+  > a {
+    border-radius: 4px;
+    color: #555;
+    transition: background-color 0.12s ease;
+
+    &:hover, &:focus {
+      background-color: #f0f0f0;
+      color: #333;
+    }
+  }
+
+  &.active > a {
+    &, &:hover, &:focus {
+      background-color: var(--pretix-brand-primary);
+    }
+  }
+}
+
+// ── Misc components ─────────────────────────────────────
+
+.container-fluid { padding-top: 20px; }
+
+.breadcrumb {
+  background-color: #f8f8f8;
+  border-radius: 4px;
+  padding: 10px 16px;
+  font-size: 0.92em;
+
+  > li + li::before { color: #bbb; }
+  > .active { color: #888; }
+}
+
+.pagination > li > a,
+.pagination > li > span {
+  border-color: #e0e0e0;
+  color: #555;
+  padding: 7px 14px;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+
+  &:hover, &:focus {
+    background-color: #f5f5f5;
+    border-color: #d0d0d0;
+    color: #333;
+  }
+}
+
+.pagination > .active > a,
+.pagination > .active > span {
+  &, &:hover, &:focus { border-color: var(--pretix-brand-primary); }
+}
+
+.pagination > .disabled > a,
+.pagination > .disabled > span {
+  &, &:hover, &:focus { border-color: #e8e8e8; color: #bbb; }
+}
+
+// Single-page "N elements" -- centred pill badge
+.pagination:has(> .page-current:only-child) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  > .page-current > a {
+    display: inline-block;
+    border: 1px solid #ddd;
+    background: #fff;
+    color: #888;
+    font-size: 0.8em;
+    padding: 3px 14px;
+    border-radius: 20px;
+  }
+}
+
+.pagination-container:has(.page-current:only-child) {
+  margin: 10px 0 6px;
+}
+
+// Page size selector (Show per page: 25 | 50 | 100)
+nav .clearfix:has(> small) {
+  font-size: 0.88em;
+  color: #999;
+  margin-top: 6px;
+
+  small { color: #888; font-size: inherit; }
+
+  a {
+    color: #666;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-decoration: none;
+    transition: background-color 0.12s ease;
+
+    &:hover { background-color: #f0f0f0; color: #333; }
+    strong { font-weight: 600; color: var(--pretix-brand-primary); }
+  }
+}
+
+.batch-select-actions { margin-top: 10px; }
+
+.progress {
+  border-radius: 4px;
+  background-color: #f0f0f0;
+  box-shadow: none;
+}
+
+.progress-bar { box-shadow: none; }
+
+.tooltip { z-index: 1070; }
+.tooltip-inner {
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 0.9em;
+}
+
+.well {
+  background-image: none;
+  background-color: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.list-group-item {
+  border-color: #e8e8e8;
+  padding: 11px 16px;
+  transition: background-color 0.12s ease;
+
+  &:first-child { border-radius: 6px 6px 0 0; }
+  &:last-child  { border-radius: 0 0 6px 6px; }
+
+  &.active {
+    background-image: none;
+    border-color: var(--pretix-brand-primary);
+  }
+}
+
+a.list-group-item:hover,
+a.list-group-item:focus {
+  background-color: #f8f8f8;
+}
+
+.dl-horizontal {
+  dt { color: #555; font-weight: 500; padding: 4px 0; }
+  dd { padding: 4px 0; margin-bottom: 0; border-bottom: 1px solid #f0f0f0; }
+  dd:last-of-type { border-bottom: none; }
+}
+
+// Search bar
+.search-line {
+  .form-control { border-radius: 6px 0 0 6px; }
+  .input-group-btn .btn { border-radius: 0 6px 6px 0; }
+}
+
+// ── Spinners ────────────────────────────────────────────
+// Replace FA spinning cog with a CSS ring spinner
+
+@keyframes jmb-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+%jmb-spinner {
+  &::before {
+    content: "" !important;
+    display: inline-block;
+    width: 0.9em;
+    height: 0.9em;
+    border-radius: 50%;
+    border: 0.11em solid currentColor;
+    border-color: currentColor transparent currentColor transparent;
+    animation: jmb-spin 1.2s linear infinite;
+    vertical-align: middle;
+  }
+  animation: none !important;
+  -webkit-animation: none !important;
+}
+
+dialog.modal-card .modal-card-icon .rotating {
+  @extend %jmb-spinner;
+  &::before { width: 0.8em; height: 0.8em; border-width: 0.08em; }
+}
+
+// Dashboard uses .fa-cog (no .fa-spin) with animation added in _dashboard.scss
+.widget-container.widget-lazy-loading .fa-cog,
+.logs-lazy-loading .fa-cog.fa-spin {
+  @extend %jmb-spinner;
+  color: #c0c0c0;
+}
+
+.steps .fa-cog.fa-spin {
+  @extend %jmb-spinner;
+  &::before { width: 0.85em; height: 0.85em; }
+}
+
+.big-rotating-icon { opacity: 0.7; }
+
+// ── Login page ──────────────────────────────────────────
+
+.login-panel {
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e8e8e8;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+
+  .panel-heading {
+    border-radius: 6px 6px 0 0;
+    text-align: center;
+  }
+}
+
+// ── Dashboard ───────────────────────────────────────────
+
+.dashboard {
+  gap: 12px;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.dashboard .widget-container {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 15px;
+  transition: background-color 0.12s ease, box-shadow 0.12s ease;
+
+  &:hover, &:focus {
+    background: #fff;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
+  }
+}
+
+// "View all upcoming events" etc.
+.dashboard + p > a {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.92em;
+  color: #888;
+  transition: color 0.15s ease;
+
+  &:hover, &:focus {
+    color: var(--pretix-brand-primary);
+    text-decoration: none;
+  }
+
+  &::after {
+    content: "\f054";
+    font-family: "FontAwesome";
+    font-size: 0.85em;
+    margin-left: 4px;
+  }
+}
+
+.dashboard .newevent {
+  color: #888;
+
+  .fa-plus-circle {
+    color: var(--pretix-brand-primary);
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+  }
+
+  &:hover .fa-plus-circle {
+    opacity: 1;
+  }
+}
+
+.dashboard .numwidget {
+  .num  { font-weight: 400; color: #2a2a2a; }
+  .text { color: #666; font-size: 16px; font-weight: 400; }
+}
+
+.widget-container.widget-container-event {
+  border-radius: 8px;
+  overflow: hidden;
+
+  .event {
+    a { color: #2a2a2a; font-weight: 500; }
+    .daterange, .times { color: #666; font-size: 15px; }
+  }
+
+  .bottomrow {
+    border-top: 1px solid #e8e8e8;
+
+    a {
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 10px;
+      opacity: 0.78;
+      transition: opacity 0.12s ease;
+
+      &:hover { opacity: 1; }
+    }
+
+    a.orders {
+      background: var(--pretix-brand-primary);
+    }
+  }
+}
+
+// ── Order pages ─────────────────────────────────────────
+
+// "Back to order" link in sub-page headings
+h1 > a.btn-link.btn-lg[href*="/orders/"] {
+  font-size: 0.5em;
+  font-weight: 400;
+  color: #888;
+  text-decoration: none;
+  vertical-align: middle;
+  padding: 4px 10px;
+
+  &:hover, &:focus {
+    color: var(--pretix-brand-primary);
+    text-decoration: none;
+  }
+
+  &::before {
+    content: "\f053";
+    font-family: "FontAwesome";
+    font-size: 0.85em;
+    margin-right: 2px;
+  }
+}
+
+h1 > .label {
+  vertical-align: middle;
+  padding: 6px 12px;
+}
+
+.panel-body > .product-row:first-child {
+  padding-top: 0;
+}
+
+.btn-toolbar {
+  margin-bottom: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+
+  .btn-group {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+
+.form-order-change {
+  > .row {
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+    align-items: baseline;
+
+    &:first-child {
+      border-bottom: 1px solid #e0e0e0;
+      padding-bottom: 8px;
+      margin-bottom: 2px;
+    }
+
+    &:last-of-type { border-bottom: none; }
+  }
+}
+
+.product-row {
+  padding: 14px 0;
+  border-bottom: 1px solid #f0f0f0;
+
+  &:last-child { border-bottom: none; }
+
+  &.total {
+    border-bottom: none;
+    border-top: 1px solid #eee;
+  }
+
+  dl { margin-top: 8px; margin-bottom: 4px; dt { margin-top: 4px; } }
+  .position-buttons { margin-top: 8px; }
+}
+
+// ── Order overview table ────────────────────────────────
+
+.table-product-overview {
+  td:not(:first-child),
+  th:not(:first-child) {
+    border-left-color: #eee;
+  }
+  td:last-child, th:last-child {
+    border-right-color: #eee;
+  }
+
+  tr.category > th {
+    background-color: transparent;
+    color: #555;
+    font-weight: 500;
+    font-size: 0.82em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-top: 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e8e8e8;
+  }
+
+  tbody > tr.category:first-child > th {
+    padding-top: 10px;
+  }
+
+  // Override 2px border from _orders.scss
+  tfoot { border-top: none; }
+  tfoot th {
+    font-size: inherit;
+    text-transform: none;
+    letter-spacing: normal;
+    color: #333;
+    font-weight: 600;
+  }
+
+  > thead > tr + tr > th {
+    border-bottom: 1px solid #ddd;
+  }
+}
+
+#sumtoggle .btn {
+  font-size: 13px;
+  padding: 6px 12px;
+
+  &.active {
+    background-color: var(--pretix-brand-primary);
+    border-color: var(--pretix-brand-primary);
+    color: #fff;
+    box-shadow: none;
+  }
+}
+
+// ── Customer detail ─────────────────────────────────────
+
+// Lifetime spending: shrink dt/dd to content so tooltip centres on text, not the full column
+dl.text-right > dt,
+dl.text-right > dd {
+  width: fit-content;
+  margin-left: auto;
+}
+
+// ── Other page-specific ─────────────────────────────────
+
+.morris-hover.morris-default-style {
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #444;
+}
+
+#quota-stats {
+  > [class*="col-"] > legend {
+    font-size: 16px;
+    font-weight: 500;
+    color: #444;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+  }
+
+  > .col-md-5 > .row {
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f0f0;
+    &:last-of-type { border-bottom: none; }
+  }
+}
+
+.logentry {
+  .meta { color: #777; margin-bottom: 8px; }
+
+  pre {
+    background-color: #f8f8f8;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 12px;
+    font-size: 13px;
+    color: #444;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+}
+
+// ── Bank transfer import ────────────────────────────────
+
+// Upload form
+.panel:has(.form-inline input[type="file"]) .form-inline {
+  // Remove the bare "Import file:" label (the dashed border is self-explanatory)
+  label[for="file"] { display: none; }
+
+  .clearfix { display: none; }
+
+  .btn.pull-right {
+    float: none !important;
+    display: block;
+    margin-top: 12px;
+  }
+}
+
+// Supported formats: soften the <code> tags
+.panel:has(.form-inline input[type="file"]) code {
+  background: #f0f4f8;
+  color: $jmb-primary;
+  border: 1px solid #dde4ed;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+// Filter row -- proper grid layout
+.panel:has(.transaction-list) > .panel-body > .row:has(.form-inline) {
+  margin-bottom: 16px;
+  padding: 18px 20px;
+  background: #f8f9fa;
+  border: 1px solid #eee;
+  border-radius: 4px;
+
+  // The form takes full width as a block
+  > .form-inline {
+    display: block !important;
+  }
+
+  // Override Bootstrap column floats
+  .col-md-3, .col-md-4 {
+    float: none;
+    width: auto;
+    padding: 6px 0;
+  }
+
+  .form-control {
+    height: 34px;
+    padding: 6px 10px;
+  }
+
+  // Amount/date rows -- grid with fixed columns so inputs align vertically
+  .col-md-3 {
+    display: grid;
+    grid-template-columns: 90px 160px 35px 160px;
+    gap: 8px;
+    align-items: center;
+    color: #666;
+  }
+
+  // Search row -- input aligned with grid columns above, buttons inline below
+  .col-md-4 {
+    padding-top: 6px;
+    padding-bottom: 0;
+    margin-left: 98px; // 90px label + 8px gap -- aligns with grid column 2
+
+    > .form-control {
+      display: block;
+      width: 371px; // matches grid columns 2-4 (160+8+35+8+160)
+      margin-bottom: 10px;
+    }
+  }
+
+  .btn {
+    height: 34px;
+    padding: 6px 14px;
+    line-height: 20px;
+  }
+
+  // Discard all -- right-aligned beneath everything
+  > .col-md-2 {
+    float: right;
+    margin-top: -38px; // pull up to same line as Filter/Clear buttons
+
+    .btn-danger {
+      background: #fff;
+      border: 1px solid $jmb-danger;
+      box-shadow: none;
+      color: $jmb-danger;
+
+      &:hover {
+        background: $jmb-danger;
+        color: #fff;
+      }
+    }
+  }
+}
+
+// "Go to organizer-level import" -- inline text link with arrow
+.panel:has(.transaction-list) > .panel-body > p > .btn-default.btn-xs {
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--pretix-brand-primary);
+  text-decoration: none;
+  padding: 0;
+  font-size: inherit;
+
+  &::after {
+    content: "\f178"; // fa-long-arrow-right
+    font-family: FontAwesome;
+    margin-left: 5px;
+    font-size: 0.9em;
+  }
+
+  &:hover, &:focus, &:active {
+    color: var(--pretix-brand-primary-darken-10);
+    background: none;
+    border: none;
+    box-shadow: none;
+    outline: none;
+  }
+}
+
+// Transaction table wrapper -- allow typeahead dropdown to overflow
+.table-responsive:has(.transaction-list) {
+  overflow: visible;
+}
+
+// Order code typeahead dropdown in the transaction table
+table.transaction-list .tt-menu {
+  min-width: 180px;
+  padding: 4px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  font-size: 0.9em;
+
+  .tt-suggestion {
+    padding: 6px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+    color: #444;
+
+    &.tt-cursor, &:hover {
+      background: var(--pretix-brand-primary-tint-90);
+      color: var(--pretix-brand-primary);
+    }
+  }
+}
+
+// Transaction table
+table.transaction-list {
+  table-layout: fixed;
+
+  // Column widths (percentages to avoid horizontal overflow)
+  > thead > tr > th:nth-child(1) { width: 14%; }  // Actions
+  > thead > tr > th:nth-child(2) { width: 10%; }  // Date
+  > thead > tr > th:nth-child(4) { width: 9%; }   // Amount
+  > thead > tr > th:nth-child(5) { width: 16%; }  // Result
+  > thead > tr > th:nth-child(6) { width: 7%; }   // Order
+  > thead > tr > th:nth-child(7) { width: 5%; }   // Discard
+
+  // Actions column -- flex eliminates whitespace gaps between elements
+  td.actions {
+    display: flex;
+    align-items: center;
+    overflow: visible;
+
+    // Typeahead wrapper needs constraining (has inline styles)
+    .twitter-typeahead {
+      width: 90px !important;
+      display: block !important;
+      flex: none;
+    }
+
+    .form-control {
+      width: 90px !important;
+      height: 28px;
+      padding: 2px 8px;
+      font-size: 0.85em;
+      border-radius: 4px 0 0 4px;
+      border-right: none;
+    }
+
+    // Buttons connect flush to the input
+    > .btn,
+    > .btn-group > .btn {
+      height: 28px;
+      padding: 0 8px;
+      font-size: 0.85em;
+      border-radius: 0 4px 4px 0;
+      background: var(--pretix-brand-primary-tint-90);
+      border: none;
+      box-shadow: inset 0 0 0 1px #c0c0c0;
+      color: var(--pretix-brand-primary);
+
+      &:hover {
+        background: var(--pretix-brand-primary);
+        color: #fff;
+      }
+    }
+
+    // Button group (already state)
+    > .btn-group {
+      display: flex;
+      > .btn:first-child { border-radius: 0; }
+      > .btn:last-child { border-radius: 0 4px 4px 0; }
+    }
+
+    // Standalone buttons (no input) get full radius
+    > .btn:first-child { border-radius: 4px; }
+  }
+
+  // All table buttons smaller
+  .btn-default {
+    padding: 3px 8px;
+    font-size: 0.85em;
+  }
+
+  // Date column
+  td:nth-child(2) {
+    white-space: nowrap;
+  }
+
+  // Payer/reference column -- takes remaining space
+  td:nth-child(3) {
+    overflow: hidden;
+    word-wrap: break-word;
+
+    em {
+      color: #888;
+      font-size: 0.9em;
+    }
+  }
+
+  // Comment box
+  .comment-box {
+    margin-top: 6px;
+    padding: 4px 8px;
+    background: transparent;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: #888;
+
+    strong {
+      font-weight: 400;
+      color: #aaa;
+      font-size: 0.85em;
+    }
+
+    .btn-xs {
+      padding: 0 4px;
+      margin-left: 2px;
+      font-size: 0.85em;
+      opacity: 0.4;
+      border: none;
+      background: none;
+      transition: opacity 0.15s ease;
+    }
+
+    &:hover .btn-xs { opacity: 1; }
+
+    // When comment has content, show the background
+    &:not([data-plain=""]) {
+      background: #f8f9fa;
+
+      strong { color: #888; font-weight: 500; }
+      color: #666;
+    }
+
+    // Edit mode -- textarea + save/cancel buttons
+    textarea.form-control {
+      font-size: 1em;
+      padding: 6px 8px;
+      min-height: 50px;
+      resize: vertical;
+      border-color: #ccc;
+      border-radius: 4px;
+    }
+
+    .btn-group {
+      margin-top: 6px;
+
+      .btn {
+        padding: 3px 10px;
+        font-size: 0.9em;
+        background: var(--pretix-brand-primary-tint-90);
+        border: none;
+        box-shadow: inset 0 0 0 1px #c0c0c0;
+        color: var(--pretix-brand-primary);
+
+        &:hover {
+          background: var(--pretix-brand-primary);
+          color: #fff;
+        }
+
+        // Cancel button -- more muted
+        &:last-child {
+          color: #999;
+
+          &:hover {
+            background: #f0f0f0;
+            color: #666;
+          }
+        }
+      }
+    }
+  }
+
+  // Amount column
+  td:nth-child(4) {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    text-align: right;
+    padding-right: 16px;
+  }
+
+  // Result column
+  td:nth-child(5) {
+    font-size: 0.9em;
+    color: #888;
+  }
+
+  // Row spacing and alternating stripes
+  > tbody > tr > td {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  > tbody > tr:nth-child(even) {
+    background-color: #f9fafb;
+  }
+
+  // Discard column -- same style as Discard all, just smaller
+  td.discard .btn {
+    background: #fff;
+    border: 1px solid $jmb-danger;
+    box-shadow: none;
+    color: $jmb-danger;
+
+    &:hover {
+      background: $jmb-danger;
+      color: #fff;
+    }
+  }
+}
+
+// Column assignment table (CSV import mapping)
+// NB: the wrapper and inner are both rotateX(180deg) so the scrollbar
+// appears at the top. Visual top = DOM bottom; nth-child parity is reversed.
+
+// Continue button -- unfloat, sit above the table
+form:has(.flipped-scroll-wrapper) > .btn.pull-right {
+  float: none !important;
+  margin-bottom: 12px;
+}
+
+.flipped-scroll-wrapper:has(.table-th-sticky-horizontal) {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+
+  .table { margin-bottom: 0; }
+}
+
+.table-th-sticky-horizontal {
+  // Field label cells (Date, Amount, Reference, etc.)
+  thead th[scope="row"] {
+    font-weight: 500;
+    font-size: 0.9em;
+    color: #555;
+    white-space: nowrap;
+    padding-left: 12px;
+    padding-right: 16px;
+    min-width: 100px;
+    background: #f8f9fa !important;
+    border-right: 1px solid #e0e0e0;
+
+    // IBAN/BIC clear button -- right-aligned
+    > label {
+      float: right;
+
+      > .btn-sm {
+        padding: 2px 6px;
+        font-size: 0.75em;
+        color: #aaa;
+        border-color: transparent;
+        background: transparent;
+
+        &:hover { color: #666; }
+      }
+    }
+  }
+
+  // Radio/checkbox cells -- center
+  thead th:not([scope="row"]) {
+    text-align: center;
+    vertical-align: middle;
+
+    &:last-child { padding-right: 14px; }
+  }
+
+  // Separator between mapping header and data preview
+  thead tr:last-child th {
+    border-bottom: 2px solid #ddd;
+  }
+
+  // Data preview -- first row is CSV column headers
+  tbody tr:first-child td {
+    font-weight: 500;
+    font-size: 0.85em;
+    color: #444;
+    background: #f0f2f5;
+    white-space: nowrap;
+  }
+
+  // Data preview rows
+  tbody td {
+    font-size: 0.85em;
+    color: #555;
+    white-space: nowrap;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 6px 12px;
+  }
+
+  // First column in data rows (empty) -- invisible
+  tbody td:first-child {
+    background: transparent !important;
+    border: none !important;
+    width: 0;
+    padding: 0;
+  }
+
+  // Alternating data rows
+  tbody tr:nth-child(even) td:not(:first-child) {
+    background-color: #fafbfc;
+  }
+}
+
+// ── Brand colour overrides ──────────────────────────────
+// Pretix computes derived CSS custom properties at Sass compile time from the
+// original purple. We must override every derived variable so they reflect our
+// blue primary instead.
+
+:root {
+  --pretix-brand-primary: #{$jmb-primary};
+  --pretix-brand-success: #{$jmb-success};
+  --pretix-brand-info: #{$jmb-info};
+  --pretix-brand-warning: #{$jmb-warning};
+  --pretix-brand-danger: #{$jmb-danger};
+
+  --pretix-brand-primary-lighten-5: #{lighten($jmb-primary, 5%)};
+  --pretix-brand-primary-lighten-20: #{lighten($jmb-primary, 20%)};
+  --pretix-brand-primary-lighten-30: #{lighten($jmb-primary, 30%)};
+  --pretix-brand-primary-lighten-40: #{lighten($jmb-primary, 40%)};
+  --pretix-brand-primary-lighten-48: #{lighten($jmb-primary, 48%)};
+  --pretix-brand-primary-lighten-50: #{lighten($jmb-primary, 50%)};
+  --pretix-brand-primary-lighten-53: #{lighten($jmb-primary, 53%)};
+  --pretix-brand-primary-lighten-55: #{lighten($jmb-primary, 55%)};
+  --pretix-brand-primary-darken-5: #{darken($jmb-primary, 5%)};
+  --pretix-brand-primary-darken-10: #{darken($jmb-primary, 10%)};
+  --pretix-brand-primary-darken-15: #{darken($jmb-primary, 15%)};
+  --pretix-brand-primary-darken-17: #{darken($jmb-primary, 17%)};
+  --pretix-brand-primary-darken-20: #{darken($jmb-primary, 20%)};
+  --pretix-brand-primary-darken-30: #{darken($jmb-primary, 30%)};
+  --pretix-brand-primary-tint-90: #{jmb-tint($jmb-primary, 90%)};
+  --pretix-brand-primary-shade-25: #{jmb-shade($jmb-primary, 25%)};
+  --pretix-brand-primary-shade-42: #{jmb-shade($jmb-primary, 42%)};
+  --pretix-brand-primary-lighten-28-saturate-20: #{saturate(lighten($jmb-primary, 28%), 20%)};
+  --pretix-brand-primary-lighten-23-saturate-2: #{saturate(lighten($jmb-primary, 23%), 2%)};
+
+  --pretix-border-radius-base: 4px;
+  --pretix-border-radius-large: 6px;
+  --pretix-border-radius-small: 3px;
+}
+
+// ── Auth pages (login, 2FA, register, forgot, recover) ──
+// Override pretix's default purple-tinted auth layout.
+
+body:has(.form-signin) {
+  background: #f5f6f8;
+}
+
+.form-signin {
+  background: white;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+body:has(.form-signin) .impersonate-warning {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+// Auth page co-branding: inject a JMB logo next to the pretix logo using a
+// pseudo-element on the surrounding anchor -- no markup changes required.
+body:has(.form-signin) > .container > a:has(> img.logo) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin: 10% auto 30px;
+
+  &::before {
+    content: "";
+    display: block;
+    width: 110px;
+    height: 110px;
+    background: url("/static/pretixbase/img/jmb/logo.svg") center / contain no-repeat;
+  }
+
+  > img.logo {
+    margin: 0;
+    width: 190px;
+    padding-left: 28px;
+    border-left: 1px solid #d0d0d0;
+  }
+}
+
+// Navbar co-branding: inject a small JMB icon before the pretix icon.
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  &::before {
+    content: "";
+    display: block;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    background: url("/static/pretixbase/img/jmb/logo-icon.svg") center / contain no-repeat;
+  }
+
+  > img {
+    padding-left: 12px;
+    border-left: 1px solid rgba(255, 255, 255, 0.35);
+  }
+}
+
+// ── 2FA page (and similar emergency-token lists) ────────
+// Label paragraph preceding a token grid ("Unused tokens:") -- style as a
+// small uppercase section header rather than plain body text.
+.panel-body > p:has(+ ul > li > code:only-child) {
+  margin-top: 16px;
+  margin-bottom: 6px;
+  font-size: 0.78em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+}
+
+// Render a plain <ul> of <li><code>token</code></li> as a subtle grid of
+// monospace chips rather than a bulleted list of red code tags.
+.panel-body > ul:has(> li > code:only-child) {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+
+  > li {
+    background: #f5f6f8;
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+    padding: 8px 12px;
+    text-align: center;
+
+    > code {
+      background: none;
+      color: #333;
+      padding: 0;
+      font-size: 0.95em;
+      letter-spacing: 0.03em;
+    }
+  }
+}
+
+// Registered 2FA device rows: flex layout with a tinted icon chip on the
+// left, the device name in the middle, and a subtle ghost-style delete
+// button pushed to the right. Scoped to list items that contain a danger
+// anchor so we don't affect unrelated list-groups.
+.list-group > .list-group-item:has(> a.btn-danger) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+
+  > .fa {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background: var(--pretix-brand-primary-tint-90);
+    color: var(--pretix-brand-primary);
+    font-size: 1.1em;
+    text-align: center;
+    line-height: 32px;
+  }
+
+  > a.btn-danger {
+    order: 99;
+    margin-left: auto;
+    float: none !important;
+    height: 30px;
+    padding: 4px 14px;
+    font-size: 13px;
+    line-height: 20px;
+    background: transparent;
+    color: #c0392b;
+    border: 1px solid #e8d0cc;
+    border-radius: 4px;
+    box-shadow: none;
+    text-shadow: none;
+
+    &:hover, &:focus {
+      background: #fdf4f4;
+      border-color: #c0392b;
+      color: #c0392b;
+    }
+  }
+}
+
+// "Add a new X" button inside a list-group (e.g. 2FA registered devices).
+// Presents the button as a full-width ghost CTA rather than a cramped item.
+.list-group > .list-group-item:has(> a.btn-primary > .fa.fa-plus) {
+  text-align: center;
+  background: #fafafa;
+  padding: 14px;
+
+  > a.btn-primary {
+    background: transparent;
+    color: var(--pretix-brand-primary);
+    border: 1px dashed var(--pretix-brand-primary);
+    box-shadow: none;
+
+    &:hover, &:focus {
+      background: var(--pretix-brand-primary-tint-90);
+      color: var(--pretix-brand-primary);
+      border-color: var(--pretix-brand-primary);
+    }
+  }
+}
+
+// Empty-state message when a list-group contains only an "add" button.
+.list-group:has(> .list-group-item:only-child > a.btn-primary > .fa.fa-plus)::before {
+  content: "No devices configured yet.";
+  display: block;
+  padding: 20px;
+  text-align: center;
+  color: #888;
+  font-style: italic;
+  border: 1px solid #e8e8e8;
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: #fff;
+}
+
+// ── Multi-step tutorial (e.g. TOTP setup, onboarding guides) ──
+// Render each top-level step as a numbered circle + indented content block.
+ol.multi-step-tutorial {
+  list-style: none;
+  padding-left: 0;
+  counter-reset: step-counter;
+  margin-bottom: 20px;
+
+  > li {
+    counter-increment: step-counter;
+    position: relative;
+    padding-left: 48px;
+    margin-bottom: 24px;
+    min-height: 32px;
+
+    &::before {
+      content: counter(step-counter);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--pretix-brand-primary-tint-90);
+      color: var(--pretix-brand-primary);
+      font-weight: 600;
+      text-align: center;
+      line-height: 32px;
+      font-size: 0.95em;
+    }
+
+    // Nested ul (e.g. app store links) stays as a plain bullet list but
+    // with a bit more room.
+    > ul {
+      margin-top: 6px;
+      padding-left: 18px;
+    }
+  }
+}
+
+// QR code canvas: subtle white frame around the generated barcode. The
+// jQuery-qrcode plugin injects a ~256px canvas inside the div, so we need
+// block display to avoid a very tall inline-block line-box.
+.qrcode-canvas {
+  display: block;
+  width: fit-content;
+  padding: 12px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  margin: 12px 0;
+  line-height: 0;
+}
+
+// TOTP "secret key" display (shown when "Can't scan?" is expanded).
+code#otp_secret {
+  display: inline-block;
+  background: #f5f6f8;
+  border: 1px solid #e0e0e0;
+  color: #333;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.95em;
+  letter-spacing: 0.03em;
+  margin-right: 6px;
+}
+
+// Give the wrapping div (code + copy button) a little breathing room inside
+// the expanded collapse panel. Include .collapsing so the margin is present
+// during the open/close animation, not just once fully open.
+.multi-step-tutorial > li > .collapse div:has(> code#otp_secret),
+.multi-step-tutorial > li > .collapsing div:has(> code#otp_secret) {
+  margin: 10px 0 4px;
+}
+
+// Step 3 form (token input + continue + "require 2FA" checkbox). Break out
+// of the Bootstrap form-inline cramped flow into a clearer vertical stack.
+.multi-step-tutorial form.form-inline {
+  margin-top: 10px;
+
+  > .form-control[type="number"] {
+    width: 180px;
+    height: 40px;
+    font-size: 1.05em;
+    letter-spacing: 0.1em;
+    text-align: center;
+    margin-right: 8px;
+    // Strip the default number input spinner controls.
+    -moz-appearance: textfield;
+    appearance: textfield;
+
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
+
+  > .btn-primary {
+    height: 40px;
+  }
+
+  > br { display: none; }
+
+  > label {
+    display: flex;
+    width: fit-content;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 10px 14px;
+    background: #fafafa;
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+    font-weight: normal;
+    color: #444;
+    cursor: pointer;
+
+    > input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      flex: none;
+    }
+  }
+}
+
+// "Can't scan the barcode?" disclosure toggle inside a tutorial step.
+// Styled as a subtle ghost button matching the QR code frame width, with
+// a rotating chevron rather than a plain inline link.
+.multi-step-tutorial > li > p:has(> a[data-toggle="collapse"]) {
+  margin-top: 14px;
+}
+.multi-step-tutorial > li > p > a[data-toggle="collapse"] {
+  display: flex;
+  width: 282px;
+  max-width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  color: #555;
+  font-size: 0.95em;
+  text-decoration: none;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+
+  &::after {
+    content: "\f107"; // fa-chevron-down
+    font-family: FontAwesome;
+    font-size: 0.9em;
+    color: #888;
+    transition: transform 0.15s ease;
+  }
+
+  &:hover, &:focus {
+    background: #f0f0f0;
+    border-color: #ccc;
+    color: #333;
+    text-decoration: none;
+  }
+}
+
+// Detect the open state via the sibling .collapse element rather than the
+// anchor's `.collapsed` class -- Bootstrap 3 doesn't reliably set that on
+// page load, so rotating from the parent li's :has() is more robust.
+.multi-step-tutorial > li:has(> .collapse.in) > p > a[data-toggle="collapse"]::after {
+  transform: rotate(180deg);
+}
+
+// The collapse body that the "Can't scan?" toggle reveals: give it a
+// subtle recessed panel treatment so it visually attaches to the toggle.
+.multi-step-tutorial > li > .collapse,
+.multi-step-tutorial > li > .collapsing {
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin-top: 10px;
+
+  // Nested step circles inside the collapse panel should be slightly
+  // smaller so they don't fight with the outer steps for attention.
+  > ol.multi-step-tutorial > li {
+    padding-left: 38px;
+    margin-bottom: 16px;
+
+    &::before {
+      width: 26px;
+      height: 26px;
+      line-height: 26px;
+      font-size: 0.85em;
+      background: white;
+      border: 1px solid #e0e0e0;
+      color: #666;
+    }
+  }
+}
+
+// "Copy" button next to the TOTP secret code chip.
+code#otp_secret + .btn-clipboard {
+  height: auto;
+  padding: 4px 10px;
+  background: white;
+  border: 1px solid #ddd;
+  color: #555;
+  box-shadow: none;
+
+  &:hover, &:focus {
+    background: #f5f5f5;
+    border-color: #c0c0c0;
+    color: #333;
+  }
+}

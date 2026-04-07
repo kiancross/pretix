@@ -6,74 +6,72 @@ function gettext(msgid) {
     return msgid;
 }
 $(function () {
-    $(".chart").css("height", "250px");
-    new Morris.Area({
+    $(".chart").css("height", "280px");
+
+    var areaDefaults = {
+        smooth: false,
+        resize: true,
+        fillOpacity: 0.15,
+        behaveLikeLine: true,
+        lineWidth: 2,
+        pointSize: 4,
+        gridTextSize: 12,
+        gridTextColor: '#888',
+        gridLineColor: '#f0f0f0'
+    };
+    var lineColors = ['#6d28d9', '#22c55e'];
+
+    new Morris.Area($.extend({}, areaDefaults, {
         element: 'obd_chart',
         data: JSON.parse($("#obd-data").html()),
         xkey: 'date',
         ykeys: ['ordered', 'paid'],
         labels: [gettext('Placed orders'), gettext('Paid orders')],
-        lineColors: ['#3b1c4a', '#50a167'],
-        smooth: false,
-        resize: true,
-        fillOpacity: 0.3,
-        behaveLikeLine: true
-    });
-    new Morris.Area({
+        lineColors: lineColors
+    }));
+    new Morris.Area($.extend({}, areaDefaults, {
         element: 'obt_chart',
         data: JSON.parse($("#obt-data").html()),
         xkey: 'date',
         ykeys: ['ordered', 'paid'],
         labels: [gettext('Placed orders'), gettext('Paid orders')],
-        lineColors: ['#3b1c4a', '#50a167'],
-        smooth: false,
-        resize: true,
-        fillOpacity: 0.3,
-        behaveLikeLine: true
-    });
-    new Morris.Area({
+        lineColors: lineColors
+    }));
+    new Morris.Area($.extend({}, areaDefaults, {
         element: 'abd_chart',
         data: JSON.parse($("#abd-data").html()),
         xkey: 'date',
         ykeys: ['ordered', 'paid'],
         labels: [gettext('Attendees (ordered)'), gettext('Attendees (paid)')],
-        lineColors: ['#3b1c4a', '#50a167'],
-        smooth: false,
-        resize: true,
-        fillOpacity: 0.3,
-        behaveLikeLine: true
-    });
-    new Morris.Area({
+        lineColors: lineColors
+    }));
+    new Morris.Area($.extend({}, areaDefaults, {
         element: 'abt_chart',
         data: JSON.parse($("#abt-data").html()),
         xkey: 'date',
         ykeys: ['ordered', 'paid'],
         labels: [gettext('Attendees (ordered)'), gettext('Attendees (paid)')],
-        lineColors: ['#3b1c4a', '#50a167'],
-        smooth: false,
-        resize: true,
-        fillOpacity: 0.3,
-        behaveLikeLine: true
-    });
-    new Morris.Area({
+        lineColors: lineColors
+    }));
+    new Morris.Area($.extend({}, areaDefaults, {
         element: 'rev_chart',
         data: JSON.parse($("#rev-data").html()),
         xkey: 'date',
         ykeys: ['revenue'],
         labels: [gettext('Total revenue')],
-        smooth: false,
-        resize: true,
-        lineColors: ['#3b1c4a'],
-        fillOpacity: 0.3,
+        lineColors: ['#6d28d9'],
         preUnits: $.trim($("#currency").html()) + ' '
-    });
+    }));
     new Morris.Bar({
         element: 'obp_chart',
         data: JSON.parse($("#obp-data").html()),
         xkey: 'item_short',
         ykeys: ['ordered', 'paid'],
         labels: [gettext('Placed orders'), gettext('Paid orders')],
-        barColors: ['#3b1c4a', '#50a167'],
+        barColors: ['#6d28d9', '#22c55e'],
+        gridTextSize: 12,
+        gridTextColor: '#888',
+        gridLineColor: '#f0f0f0',
         hoverCallback: function (index, options, content, row) {
             console.log(content);
             var $c = $("<div>" + content + "</div>");

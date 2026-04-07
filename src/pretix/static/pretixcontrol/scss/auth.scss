@@ -65,5 +65,6 @@ footer {
 	border-radius: $border-radius-base;
 }
 
+@import "_jmb_overrides.scss";
 @import "../../pretixbase/scss/_rtl.scss";
 @import "../../bootstrap/scss/_rtl.scss";
