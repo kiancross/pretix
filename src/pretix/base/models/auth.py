@@ -343,7 +343,7 @@ class User(AbstractBaseUser, PermissionsMixin, LoggingMixin):
 
             mail(
                 email or self.email,
-                _('Account information changed'),
+                _('Changes to your account'),
                 'pretixcontrol/email/security_notice.txt',
                 {
                     'user': self,
@@ -390,7 +390,7 @@ class User(AbstractBaseUser, PermissionsMixin, LoggingMixin):
         }
         mail(
             email or self.email,
-            _('pretix confirmation code'),
+            _('Your confirmation code'),
             'pretixcontrol/email/confirmation_code.txt',
             {
                 'user': self,
@@ -434,7 +434,9 @@ class User(AbstractBaseUser, PermissionsMixin, LoggingMixin):
         from pretix.base.services.mail import mail
 
         mail(
-            self.email, _('Password recovery'), 'pretixcontrol/email/forgot.txt',
+            self.email,
+            _('Reset your password'),
+            'pretixcontrol/email/forgot.txt',
             {
                 'instance': settings.PRETIX_INSTANCE_NAME,
                 'user': self,

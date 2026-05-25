@@ -1039,7 +1039,9 @@ class TeamMemberView(OrganizerDetailViewMixin, OrganizerPermissionRequiredMixin,
         try:
             mail(
                 instance.email,
-                _('Account invitation'),
+                gettext('You\'ve been invited to join %(organizer)s') % {
+                    'organizer': self.request.organizer.name,
+                },
                 'pretixcontrol/email/invitation.txt',
                 {
                     'instance': settings.PRETIX_INSTANCE_NAME,
